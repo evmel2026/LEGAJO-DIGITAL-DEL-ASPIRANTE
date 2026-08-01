@@ -1,0 +1,42 @@
+{
+  "name": "Legajo Digital del Aspirante",
+  "short_name": "Legajo Digital",
+  "description": "Sistema integral de legajo digital de aspirantes — DCFyCCCO, Secretaría Académica",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": [
+    "standalone",
+    "minimal-ui"
+  ],
+  "orientation": "portrait-primary",
+  "background_color": "#14091f",
+  "theme_color": "#7241bd",
+  "lang": "es-AR",
+  "dir": "ltr",
+  "categories": [
+    "productivity",
+    "education"
+  ],
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

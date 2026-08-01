@@ -4,7 +4,13 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Legajo Digital del Aspirante</title>
-<meta name="theme-color" content="#8fd400" />
+<meta name="theme-color" content="#7241bd" />
+<meta name="description" content="Sistema integral de legajo digital de aspirantes — DCFyCCCO, Secretaría Académica" />
+<link rel="manifest" href="manifest.json" />
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
+<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png" />
+<link rel="apple-touch-icon" href="apple-touch-icon.png" />
+<meta name="mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="apple-mobile-web-app-title" content="Legajo Digital" />
@@ -4882,32 +4888,17 @@ function App() {
   }) : listado);
 }
 
-// ====== PWA: manifiesto embebido (sin archivos aparte) ======
-(function () {
-  try {
-    const manifiesto = {
-      name: "Legajo Digital del Aspirante",
-      short_name: "Legajo Digital",
-      description: "Sistema integral de legajo digital de aspirantes — DCFyCCCO, Secretaría Académica",
-      start_url: ".",
-      scope: ".",
-      display: "standalone",
-      background_color: "#0c1207",
-      theme_color: "#8fd400",
-      lang: "es-AR",
-      icons: [{ src: ESCUDO, sizes: "360x426", type: "image/png", purpose: "any" }]
-    };
-    const url = URL.createObjectURL(new Blob([JSON.stringify(manifiesto)], { type: "application/manifest+json" }));
-    const link = document.createElement("link");
-    link.rel = "manifest";
-    link.href = url;
-    document.head.appendChild(link);
-    const icono = document.createElement("link");
-    icono.rel = "apple-touch-icon";
-    icono.href = ESCUDO;
-    document.head.appendChild(icono);
-  } catch (e) {}
-})();
+// ══════════════════════════════════════════════════════════════
+//  APLICACIÓN INSTALABLE
+//  El manifiesto (manifest.json) y el service worker (sw.js) van
+//  como archivos aparte en el repositorio: es lo que exige el
+//  navegador para ofrecer "Instalar" y no un simple acceso directo.
+// ══════════════════════════════════════════════════════════════
+if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js").catch(() => {});
+  });
+}
 
 ReactDOM.createRoot(document.getElementById("root")).render(/*#__PURE__*/React.createElement(App, null));
 </script>
