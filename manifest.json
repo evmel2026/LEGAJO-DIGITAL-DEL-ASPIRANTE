@@ -2,7 +2,7 @@
   "name": "Legajo Digital del Aspirante",
   "short_name": "Legajo Digital",
   "description": "Sistema integral de legajo digital de aspirantes — DCFyCCCO, Secretaría Académica",
-  "id": "./",
+  "id": "/legajo-digital/",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
