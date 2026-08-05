@@ -287,7 +287,7 @@ const h = React.createElement;
 const APP_NOMBRE = "LEGAJO DIGITAL DEL ASPIRANTE";
 const APP_CORTO = "Legajo Digital";
 const APP_SUB = "del Aspirante";
-const APP_VER = "3.1";
+const APP_VER = "3.2";
 
 // ══════════════════════════════════════════════════════════════
 //  CONEXIÓN A SUPABASE
@@ -891,6 +891,27 @@ const DB = {
 //  El ingreso lo valida Supabase. Sin sesión iniciada la base no
 //  devuelve nada, aunque alguien tenga la clave del código.
 // ══════════════════════════════════════════════════════════════
+// Cambia la contraseña de OTRA persona del equipo.
+// La app no tiene la llave para hacerlo: sólo le pide el cambio a la base.
+// La función lda_cambiar_clave (en Supabase) verifica que quien lo pide
+// tenga rol admin antes de tocar nada. Devuelve "OK" o "ERROR: motivo".
+async function cambiarClaveDe(usuario, nueva) {
+  try {
+    const { data, error } = await _withTimeout(sb.rpc("lda_cambiar_clave", {
+      p_usuario: norm(usuario).trim(),
+      p_nueva: nueva
+    }), 20000);
+    if (error) {
+      if (/could not find the function|does not exist/i.test(error.message || ""))
+        return "ERROR: falta instalar la función lda_cambiar_clave en Supabase";
+      return "ERROR: " + error.message;
+    }
+    return data || "ERROR: la base no respondió";
+  } catch (e) {
+    return "ERROR: " + e.message;
+  }
+}
+
 async function perfilDe(usuario) {
   const { data, error } = await _withTimeout(sb.from(TABLAS.usuarios).select("*").eq("usuario", norm(usuario).trim()).maybeSingle());
   if (error || !data) return null;
@@ -3661,11 +3682,17 @@ function UsuariosTab({
 }) {
   const usuarios = data.usuarios || [];
   const [d, setD] = useState(null);
+  const [guardando, setGuardando] = useState(false);
   const guardar = async () => {
     if (!d.nombre || !d.usuario) {
       toast("Nombre y usuario son obligatorios", "err");
       return;
     }
+    if (d.password && d.password.length < 6) {
+      toast("La contraseña necesita al menos 6 caracteres", "err");
+      return;
+    }
+    const cambioClave = !!d.password;
     const existente = usuarios.find(u => u.id === d.id);
     if (!existente && !d.password) {
       toast("Poné una contraseña para el usuario nuevo", "err");
@@ -3699,14 +3726,19 @@ function UsuariosTab({
         return;
       }
     } else if (sb && existente && d.password) {
-      toast("La contraseña de otra persona se cambia desde Supabase (Authentication → Users)", "err");
+      // Usuario que ya existe: el cambio de clave lo hace la base
+      const r = await cambiarClaveDe(d.usuario, d.password);
+      if (r !== "OK") {
+        toast(r.replace(/^ERROR:\s*/, ""), "err");
+        return;
+      }
     }
     const nu = existente ? usuarios.map(u => u.id === d.id ? base : u) : [...usuarios, base];
     try {
       await DB.guardarUsuarios(nu);
       setData({ ...data, usuarios: nu });
       setD(null);
-      toast("Usuario guardado", "ok");
+      toast(cambioClave ? "Guardado. La contraseña nueva ya se puede entregar." : "Usuario guardado", "ok");
     } catch (e) {
       toast("Error: " + e.message, "err");
     }
@@ -3882,8 +3914,13 @@ function UsuariosTab({
     }
   }, /*#__PURE__*/React.createElement("button", {
     className: "btn btn-gold",
-    onClick: guardar
-  }, "Guardar"), /*#__PURE__*/React.createElement("button", {
+    disabled: guardando,
+    onClick: async () => {
+      if (guardando) return;
+      setGuardando(true);
+      try { await guardar(); } finally { setGuardando(false); }
+    }
+  }, guardando ? "Guardando…" : "Guardar"), /*#__PURE__*/React.createElement("button", {
     className: "btn btn-ghost",
     onClick: () => setD(null)
   }, "Cancelar"))));
@@ -4031,29 +4068,35 @@ function CambiarPass({ user, usuarios, onGuardar, cerrar, avisar }) {
 function ResetPass({ usuarios, onGuardar, cerrar, avisar }) {
   const [sel, setSel] = useState("");
   const [nueva, setNueva] = useState("");
+  const [ocupado, setOcupado] = useState(false);
   const aplicar = async () => {
+    if (ocupado) return;
     if (!sel) return avisar("Elegí un usuario", "err");
     if (!nueva || nueva.length < 6) return avisar("La contraseña necesita al menos 6 caracteres", "err");
-    const hs = await hashPass(nueva);
-    await onGuardar(usuarios.map(u => u.id === sel ? { ...u, hash: hs } : u));
-    avisar("Contraseña restablecida", "ok");
-    cerrar();
+    const quien = usuarios.find(u => u.id === sel);
+    if (!quien) return avisar("No encontré ese usuario", "err");
+    setOcupado(true);
+    try {
+      if (sb) {
+        const r = await cambiarClaveDe(quien.usuario, nueva);
+        if (r !== "OK") {
+          avisar(r.replace(/^ERROR:\s*/, ""), "err");
+          return;
+        }
+      }
+      const hs = await hashPass(nueva);
+      await onGuardar(usuarios.map(u => u.id === sel ? { ...u, hash: hs } : u));
+      avisar(`Listo. Entregale la contraseña a ${quien.nombre} y pedile que la cambie.`, "ok");
+      cerrar();
+    } catch (e) {
+      avisar("No se pudo cambiar: " + e.message, "err");
+    } finally {
+      setOcupado(false);
+    }
   };
-  if (sb) {
-    return h("div", null,
-      h("div", { style: { fontSize: 13.5, lineHeight: 1.55, marginBottom: 14 } },
-        "Con la base en la nube, las contraseñas ajenas se cambian desde el panel de Supabase. Es a propósito: la llave que permite cambiarle la clave a otra persona es demasiado poderosa para dejarla dentro de una página web."),
-      h("div", { style: { fontSize: 13, color: "var(--txt-dim)", lineHeight: 1.7, borderLeft: "3px solid var(--acc)", paddingLeft: 12 } },
-        h("div", null, "1. Entrá a supabase.com con tu cuenta."),
-        h("div", null, "2. Abrí el proyecto, después Authentication y Users."),
-        h("div", null, "3. Buscá el correo interno, por ejemplo ", h("b", { style: { color: "var(--acc2)" } }, "calderonn" + DOMINIO_INTERNO), "."),
-        h("div", null, "4. Tocá los tres puntitos y elegí Reset password."),
-        h("div", null, "5. Pasale la nueva y pedile que la cambie desde Cambiar mi contraseña.")),
-      h("div", { style: { display: "flex", justifyContent: "flex-end", marginTop: 16 } },
-        h("button", { className: "btn btn-ghost", onClick: cerrar }, "Entendido")));
-  }
   return h("div", null,
-    h("div", { style: { fontSize: 13, color: "var(--txt-dim)", marginBottom: 14 } }, "Le asignás una contraseña nueva a otra persona del equipo. Avisale para que la cambie en su primer ingreso."),
+    h("div", { style: { fontSize: 13, color: "var(--txt-dim)", lineHeight: 1.6, marginBottom: 14 } },
+      "Le asignás una contraseña provisoria a otra persona del equipo, se la entregás y ella la cambia en su primer ingreso desde Cambiar mi contraseña. La contraseña vieja no se puede consultar: sólo reemplazar."),
     h("div", { style: { marginBottom: 12 } },
       h("label", { className: "lbl" }, "Usuario"),
       h("select", {
@@ -4065,7 +4108,7 @@ function ResetPass({ usuarios, onGuardar, cerrar, avisar }) {
     h(Campo, { l: "Nueva contraseña", val: nueva, set: setNueva, editable: true, full: true, type: "password" }),
     h("div", { style: { display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 8 } },
       h("button", { className: "btn btn-ghost", onClick: cerrar }, "Cancelar"),
-      h("button", { className: "btn btn-coral", onClick: aplicar }, "Restablecer")));
+      h("button", { className: "btn btn-coral", disabled: ocupado, onClick: aplicar }, ocupado ? "Cambiando…" : "Restablecer")));
 }
 
 function MenuConfig(props) {
