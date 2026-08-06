@@ -40,6 +40,7 @@
   --gold2:#b6f500;        /* alias -> acento claro (compat) */
   --gold-dim:#5f8f1a;     /* alias -> acento tenue (compat) */
   --green:#37d67a; --red:#ff5a52; --amber:#ffb020; --blue:#8fd400;
+  --info:#7aa7ff; --info-rgb:122,167,255;   /* desafectados */
   --btn-txt:#16240a;      /* texto oscuro sobre botón lima */
   --shadow:0 8px 30px rgba(0,0,0,.55);
 }
@@ -51,6 +52,7 @@
   --coral:#ef5a1f; --coral2:#ff7433;
   --gold:#6faf00; --gold2:#5a9500; --gold-dim:#9dc471;
   --green:#1a9e57; --red:#e0362e; --amber:#c77b00; --blue:#6faf00;
+  --info:#2f5fc0; --info-rgb:47,95,192;
   --btn-txt:#16240a;
   --shadow:0 8px 24px rgba(143,212,0,.15);
 }
@@ -287,7 +289,7 @@ const h = React.createElement;
 const APP_NOMBRE = "LEGAJO DIGITAL DEL ASPIRANTE";
 const APP_CORTO = "Legajo Digital";
 const APP_SUB = "del Aspirante";
-const APP_VER = "3.2";
+const APP_VER = "3.3";
 
 // ══════════════════════════════════════════════════════════════
 //  CONEXIÓN A SUPABASE
@@ -345,8 +347,8 @@ const ESTADO_CIVIL = ["Soltero/a", "Casado/a", "Concubinato", "Divorciado/a", "V
 const GRUPO_SANG = ["0+", "0-", "A+", "A-", "B+", "B-", "AB+", "AB-"];
 const TIPO_DOC_CARPETA = ["Certificado", "Constancia", "Acta", "Informe médico", "Nota", "Resolución", "Otro"];
 const SI_NO = ["Sí", "No"];
-const ESTADOS_ASP = ["Activo", "Desistió", "Baja", "Egresado"];
-const ESTADOS_INACTIVOS = ["Desistió", "Baja"];
+const ESTADOS_ASP = ["Activo", "Desistió", "Baja", "Desafectado", "Egresado"];
+const ESTADOS_INACTIVOS = ["Desistió", "Baja", "Desafectado"];
 const SEXOS = ["Femenino", "Masculino"];
 const ASISTENCIA = ["Presente", "Ausente"];
 const esInactivo = l => ESTADOS_INACTIVOS.includes(l.estado || "Activo");
@@ -3401,6 +3403,76 @@ function exportarPDFLegajo(l) {
   d.save(`Legajo_${(l.apellido || "aspirante").replace(/[^A-Za-zÁÉÍÓÚÑáéíóúñ ]/g, "").trim().replace(/ /g, "_")}_${l.dni || l.id}.pdf`);
 }
 
+// ══════════════════════════════════════════════════════════════
+//  IMPORTAR SECCIONES DESDE UN EXCEL (listado oficial)
+//  Lee cualquier planilla que tenga una columna de DNI y una de
+//  sección. Acepta "APELLIDO Y NOMBRE" junto o separado en dos
+//  columnas. No queda ningún dato personal dentro del archivo.
+// ══════════════════════════════════════════════════════════════
+const seccionDeValor = v => {
+  const t = norm(v).replace(/[^0-9]/g, "");
+  const n = parseInt(t, 10);
+  return n >= 1 && n <= SECCIONES.length ? SECCIONES[n - 1] : "";
+};
+// nombres de pila frecuentes: sirven para saber dónde termina el apellido
+const NOMBRES_PILA = new Set("abigail abril adriana adrian agostina agustin agustina aida ailen ailin aixa alan alba alberto aldana aldo alejandra alejandro alessandro alex alexander alexis alfredo alicia alma amanda amira ana analia andrea andres andre angel angela angeles anibal antonella antonia antonio araceli ariadna ariel arturo astrid athina augusto aurora axel ayara ayelen aylen aylin azucena azul barbara belen benicio benjamin bernardo betiana bianca braian brandon brenda brian bruno camila camilo candela carla carlos carolina catalina cecilia celeste celina cesar cintia cinthia clara claribel clarisa claudia claudio constanza cristian cristina daiana daian daisi dalma damian daniel daniela danilo dafne dario david debora delfina delmiro denise diego dolores dylan edgardo eduardo elena eleazar elias eros enrique elizabet elizabeth emanuel emilia emiliano emilio enzo erica erick erika ernesto esteban estefania eugenia eva evelyn exequiel ezequiel fabian fabiana fabricio fabrizio facundo federico felipe felix fernanda fernando flavia florencia franco francisco frank gabriel gabriela gaston geronimo gilda gisela gladys gonzalo graciela guadalupe guillermo gustavo hector hernan hugo iara ian ignacio indiana ines irina isaias isabel ismael itati ivan ivana jael janet javier jazmin jeremias jesica joana joaquin joel johana jonathan jorge jose josefina joselin juan judit julian julieta julio karen karla kevin kiara lara laura lautaro leandro leonardo leonel leticia lorena lourdes luana lucas lucia luciana luciano lucila luis luz macarena magali maia maira maite mailen maylen malena manuel mara marcelo marco marcos margarita maria mariana mariano maricel marina mario marisol marta martin martina matias mauricio mauro maxi maximiliano mayco mayra maylen melanie melina melisa mercedes micaela miguel milagros milena mirta misael moira morena nadia nahiara nahir nahuel naila nair nicole natali natalia nazareno nelson nestor nicolas noelia norma octavio olga oriel orlando oscar pablo paola patricia patricio paula pedro priscila quimey rafael ramiro ramon raul rebeca ricardo richard rita roberto rocio rodrigo rolando romina roman rosa rosario ruben rufino rut ruth samanta samuel sandra santiago sara sasha sebastian selena sergio sharon silvana silvia sofia solange sol sonia soledad tamara tatiana thiago thaiel tiara tiziano tomas ulise uriel ursula valentin valentina valeria vanesa veronica victor victoria vilma walter wanda wilfredo williams yael yamil yamila yamna yanina yasmina yoel yohana yoseli zoe zulema".split(" "));
+const partirApellidoNombre = txt => {
+  const limpio = (txt || "").toString().replace(/\s+/g, " ").trim();
+  if (!limpio) return { apellido: "", nombre: "" };
+  if (limpio.includes(",")) {
+    const [a, ...resto] = limpio.split(",");
+    return { apellido: a.trim(), nombre: resto.join(" ").replace(/\s+/g, " ").trim() };
+  }
+  const p = limpio.split(" ");
+  if (p.length === 1) return { apellido: p[0], nombre: "" };
+  // apellido doble: la 2da palabra no es nombre de pila y la 3ra sí lo es
+  const corte = (p.length >= 3 && !NOMBRES_PILA.has(norm(p[1])) && NOMBRES_PILA.has(norm(p[2]))) ? 2 : 1;
+  return { apellido: p.slice(0, corte).join(" "), nombre: p.slice(corte).join(" ") };
+};
+async function leerSeccionesDeExcel(file) {
+  const buf = await file.arrayBuffer();
+  const wb = XLSX.read(new Uint8Array(buf), { type: "array" });
+  const vistos = {};
+  const filas = [];
+  for (const nombreHoja of wb.SheetNames) {
+    const aoa = XLSX.utils.sheet_to_json(wb.Sheets[nombreHoja], { header: 1, raw: false, defval: "" });
+    let cab = -1, cDni = -1, cSec = -1, cApe = -1, cNom = -1, cJunto = -1;
+    for (let i = 0; i < Math.min(aoa.length, 15); i++) {
+      const fila = (aoa[i] || []).map(c => norm(c).trim());
+      const dni = fila.findIndex(c => c.includes("dni") || c.includes("documento"));
+      const sec = fila.findIndex(c => c.includes("seccion"));
+      if (dni < 0 || sec < 0) continue;
+      cab = i; cDni = dni; cSec = sec;
+      cJunto = fila.findIndex(c => c.includes("apellido") && c.includes("nombre"));
+      if (cJunto < 0) {
+        cApe = fila.findIndex(c => c.includes("apellido"));
+        cNom = fila.findIndex(c => c.includes("nombre"));
+      }
+      break;
+    }
+    if (cab < 0) continue;
+    for (let i = cab + 1; i < aoa.length; i++) {
+      const f = aoa[i] || [];
+      const dni = (f[cDni] || "").toString().replace(/[^0-9]/g, "").trim();
+      const seccion = seccionDeValor(f[cSec]);
+      if (!dni || !seccion || vistos[dni]) continue;
+      let apellido = "", nombre = "", completo = "";
+      if (cJunto >= 0) {
+        completo = (f[cJunto] || "").toString();
+        const par = partirApellidoNombre(completo);
+        apellido = par.apellido; nombre = par.nombre;
+      } else {
+        apellido = (cApe >= 0 ? f[cApe] || "" : "").toString().trim();
+        nombre = (cNom >= 0 ? f[cNom] || "" : "").toString().trim();
+        completo = `${apellido} ${nombre}`.trim();
+      }
+      vistos[dni] = true;
+      filas.push({ dni, seccion, apellido, nombre, completo });
+    }
+  }
+  return filas;
+}
+
 // ====== ESTADÍSTICAS ======
 function colorEstado(e) {
   if (e === "Desistió") return {
@@ -3410,6 +3482,10 @@ function colorEstado(e) {
   if (e === "Baja") return {
     bg: "rgba(255,90,82,.15)",
     fg: "var(--red)"
+  };
+  if (e === "Desafectado") return {
+    bg: "rgba(var(--info-rgb),.16)",
+    fg: "var(--info)"
   };
   if (e === "Egresado") return {
     bg: "rgba(255,107,53,.15)",
@@ -3439,7 +3515,7 @@ function kpisDe(arr) {
 function filasResumen(legajos) {
   const act = legajos.filter(l => !esInactivo(l));
   const a = kpisDe(act), t = kpisDe(legajos);
-  return [["Aspirantes inscriptos", t.total, act.length], ["Femeninos", t.fem, a.fem], ["Masculinos", t.masc, a.masc], ["Sin sexo cargado", t.sinSexo, a.sinSexo], ["Presentes", t.presentes, a.presentes], ["Ausentes", t.ausentes, a.ausentes], ["Sin asistencia cargada", t.sinAsist, a.sinAsist], ["Con certificado médico", t.certificado, a.certificado], ["Con licencia de conducir", t.carnet, a.carnet], ["Con sanciones", t.sancionados, a.sancionados], ["Con recargos", t.recargos, a.recargos], ["Bajas", legajos.filter(l => l.estado === "Baja").length, 0], ["Desistieron", legajos.filter(l => l.estado === "Desistió").length, 0]];
+  return [["Aspirantes inscriptos", t.total, act.length], ["Femeninos", t.fem, a.fem], ["Masculinos", t.masc, a.masc], ["Sin sexo cargado", t.sinSexo, a.sinSexo], ["Presentes", t.presentes, a.presentes], ["Ausentes", t.ausentes, a.ausentes], ["Sin asistencia cargada", t.sinAsist, a.sinAsist], ["Con certificado médico", t.certificado, a.certificado], ["Con licencia de conducir", t.carnet, a.carnet], ["Con sanciones", t.sancionados, a.sancionados], ["Con recargos", t.recargos, a.recargos], ["Bajas", legajos.filter(l => l.estado === "Baja").length, 0], ["Desistieron", legajos.filter(l => l.estado === "Desistió").length, 0], ["Desafectados", legajos.filter(l => l.estado === "Desafectado").length, 0]];
 }
 function conteoPor(legajos, campo, def) {
   const o = {};
@@ -4006,7 +4082,7 @@ function imprimirRegistros(desde, hasta, recorrido, accesos, legajos) {
     d.addPage();
     y = 20;
   }
-  tabla(["Resumen del período", "Cantidad"], [["Ingresos al sistema", acc.length], ["Movimientos registrados", rec.length], ["Legajos activos", (legajos || []).filter(l => !esInactivo(l)).length], ["Bajas y desistimientos", (legajos || []).filter(esInactivo).length], ["Total de legajos", (legajos || []).length]], y);
+  tabla(["Resumen del período", "Cantidad"], [["Ingresos al sistema", acc.length], ["Movimientos registrados", rec.length], ["Legajos activos", (legajos || []).filter(l => !esInactivo(l)).length], ["Bajas, desistimientos y desafectados", (legajos || []).filter(esInactivo).length], ["Total de legajos", (legajos || []).length]], y);
   const tot = d.internal.getNumberOfPages();
   for (let i = 1; i <= tot; i++) {
     d.setPage(i);
@@ -4217,7 +4293,7 @@ function Shell(props) {
     return () => clearInterval(t);
   }, []);
   const noLeidas = (notifs || []).filter(n => !n.leida && !n.archivada).length;
-  const nav = [["legajos", "Legajos"], ["bajas", "Bajas y Desistieron"], ["estadisticas", "Estadísticas"]].concat(rol === "admin" ? [["usuarios", "Usuarios"], ["admin", "Administración"]] : []);
+  const nav = [["legajos", "Legajos"], ["bajas", "Bajas, Desistieron y Desafectados"], ["estadisticas", "Estadísticas"]].concat(rol === "admin" ? [["usuarios", "Usuarios"], ["admin", "Administración"]] : []);
   const cerrarTodo = () => {
     setOpenN(false);
     setOpenC(false);
@@ -4375,8 +4451,12 @@ function Tabla({ cols, filas, vacio }) {
         filas.map((f, i) => h("tr", { key: i, style: { background: i % 2 ? "transparent" : "var(--panel2)" } },
           f.map((c, j) => h("td", { key: j, style: { padding: "9px 10px", borderBottom: "1px solid var(--border)", verticalAlign: "top" } }, c)))))));
 }
-function Administracion({ legajos, usuarios, accesos, recorrido, avisos, onAbrir, onCompletar, avisar }) {
+function Administracion({ legajos, usuarios, accesos, recorrido, avisos, onAbrir, onCompletar, avisar, onImportarSecciones }) {
   const [sub, setSub] = useState("");
+  const refExcel = useRef(null);
+  const [impListado, setImpListado] = useState("2do listado");
+  const [impCargando, setImpCargando] = useState(false);
+  const [impRes, setImpRes] = useState(null);
   const opciones = [
     ["accesos", "👁️", "Registro de Accesos", "Quién entró, cuándo y con qué rol"],
     ["recorrido", "🧭", "Recorrido de Usuarios", "Qué hizo cada persona dentro del sistema"],
@@ -4447,7 +4527,54 @@ function Administracion({ legajos, usuarios, accesos, recorrido, avisos, onAbrir
           ASPIRANTES_SEMILLA.length ? h("button", { className: "btn btn-ghost", onClick: onCompletar }, "⤓ Cargar datos del listado oficial") : null,
           h("button", { className: "btn btn-ghost", onClick: () => exportarExcel(legajos) }, "📊 Exportar todo a Excel")),
         h("div", { style: { fontSize: 12, color: "var(--txt-dim)", marginTop: 12, lineHeight: 1.5 } },
-          "El respaldo guarda todos los legajos en un archivo .json en tu equipo. Las contraseñas nunca se incluyen.")));
+          "El respaldo guarda todos los legajos en un archivo .json en tu equipo. Las contraseñas nunca se incluyen.")),
+      onImportarSecciones ? h("div", { className: "card", style: { padding: 20, marginTop: 14 } },
+        h("h3", { style: { color: "var(--acc2)", fontSize: 17, marginBottom: 6 } }, "📥 Repartir aspirantes por sección"),
+        h("div", { style: { fontSize: 12.5, color: "var(--txt-dim)", marginBottom: 14, lineHeight: 1.55 } },
+          "Subí el Excel del listado oficial (tiene que tener una columna de DNI y otra de sección). A cada aspirante ya cargado le asigno su sección buscándolo por DNI, y a los que todavía no están les creo el legajo con apellido, nombre, DNI y sección. Nada se pisa: el resto de los datos queda igual."),
+        h("input", {
+          ref: refExcel, type: "file", accept: ".xlsx,.xls,.xlsm", hidden: true,
+          onChange: async e => {
+            const file = e.target.files && e.target.files[0];
+            e.target.value = "";
+            if (!file) return;
+            setImpCargando(true);
+            setImpRes(null);
+            const r = await onImportarSecciones(file, impListado);
+            setImpCargando(false);
+            if (r) setImpRes(r);
+          }
+        }),
+        h("div", { style: { display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" } },
+          h("button", {
+            className: "btn btn-lima", disabled: impCargando,
+            onClick: () => refExcel.current && refExcel.current.click()
+          }, impCargando ? "Importando…" : "📥 Elegir el Excel del listado"),
+          h("span", { style: { fontSize: 12.5, color: "var(--txt-dim)" } }, "Los que se creen quedan como:"),
+          h("select", {
+            className: "inp", style: { width: "auto", minWidth: 130 }, value: impListado,
+            onChange: e => setImpListado(e.target.value)
+          }, LISTADOS.map(x => h("option", { key: x, value: x }, x)))),
+        impRes ? h("div", { style: { marginTop: 16, borderTop: "1px solid var(--border)", paddingTop: 14 } },
+          h("div", { style: { display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 } },
+            [["Filas leídas", impRes.total, "var(--acc2)"],
+             ["Secciones asignadas", impRes.asignados, "var(--green)"],
+             ["Legajos creados", impRes.creados.length, "var(--coral)"],
+             ["Ya estaban", impRes.yaEstaban, "var(--txt-dim)"],
+             ["Con error", impRes.errores, impRes.errores ? "var(--red)" : "var(--txt-dim)"]
+            ].map(([t, v, c]) => h("span", {
+              key: t, className: "tag",
+              style: { background: "var(--bg2)", color: c, border: "1px solid var(--border)" }
+            }, `${t}: ${v}`))),
+          impRes.creados.length ? h("div", null,
+            h("div", { style: { fontSize: 12.5, color: "var(--txt-dim)", marginBottom: 8, lineHeight: 1.5 } },
+              "Estos legajos los creé yo separando apellido y nombre por la primera palabra. Si alguno tiene apellido doble, tocalo y corregilo:"),
+            h("div", { style: { display: "flex", flexWrap: "wrap", gap: 6 } },
+              impRes.creados.map(l => h("button", {
+                key: l.id, className: "tag",
+                style: { background: "var(--bg2)", color: "var(--txt)", border: "1px solid var(--border)", cursor: "pointer" },
+                onClick: () => onAbrir(l)
+              }, `${l.apellido}, ${l.nombre} · ${l.seccion}`)))) : null) : null) : null);
   }
   // Revisión de datos
   const dnis = {};
@@ -4463,7 +4590,7 @@ function Administracion({ legajos, usuarios, accesos, recorrido, avisos, onAbrir
     ["Sin teléfono", legajos.filter(l => !(l.telefono || "").trim() && !esInactivo(l))],
     ["Licencia vencida", legajos.filter(l => l.carnet && l.carnet.posee && diasHasta(l.carnet.vencimiento) !== null && diasHasta(l.carnet.vencimiento) < 0)],
     ["Certificado médico vencido", legajos.filter(l => (l.certMedico || {}).tiene === "Sí" && diasHasta((l.certMedico || {}).hasta) !== null && diasHasta((l.certMedico || {}).hasta) < 0)],
-    ["Baja sin motivo indicado", legajos.filter(l => esInactivo(l) && !(l.motivoEstado || "").trim())]
+    ["Baja / desafectación sin motivo indicado", legajos.filter(l => esInactivo(l) && !(l.motivoEstado || "").trim())]
   ];
   const sinInstructor = SECCIONES.filter(sec => !aCargoDe(usuarios, sec).length);
   return h("div", { className: "fade", style: cont }, volver,
@@ -4714,7 +4841,7 @@ function App() {
     const av = await publicarAviso(user, `${comoLlamar(user)} ${anterior ? "actualizó" : "creó"} el legajo de ${quien}${l.seccion ? " · " + l.seccion : ""}`);
     if (av) setAvisos(av);
     registrarPaso(user, anterior ? "Guardó un legajo" : "Creó un legajo", quien).then(r => r && setRecorrido(r));
-    if (anterior && !esInactivo(anterior) && esInactivo(l)) toast(`Pasó a "${l.estado}": ahora está en Bajas y Desistieron`, "ok");
+    if (anterior && !esInactivo(anterior) && esInactivo(l)) toast(`Pasó a "${l.estado}": ahora está en Bajas, Desistieron y Desafectados`, "ok");
   };
 
   const completarDesdeListado = async () => {
@@ -4762,9 +4889,100 @@ function App() {
     }
   };
 
+  // Importa el listado oficial (Excel) y reparte a cada aspirante en su sección
+  const importarSecciones = async (file, listadoNuevos) => {
+    if (!esAdmin(user)) {
+      toast("Sólo las administradoras pueden importar el listado", "err");
+      return null;
+    }
+    let filas = [];
+    try {
+      filas = await leerSeccionesDeExcel(file);
+    } catch (e) {
+      toast("No pude leer el archivo. Tiene que ser un Excel (.xlsx)", "err");
+      return null;
+    }
+    if (!filas.length) {
+      toast("No encontré columnas de DNI y de sección en la planilla", "err");
+      return null;
+    }
+    const porDni = {};
+    const porNombre = {};
+    data.legajos.forEach((l, i) => {
+      const d = (l.dni || "").toString().replace(/[^0-9]/g, "");
+      if (d) porDni[d] = i;
+      const n = norm(`${l.apellido || ""} ${l.nombre || ""}`).replace(/[^a-z0-9]/g, "");
+      if (n) porNombre[n] = i;
+    });
+    const nuevos = [...data.legajos];
+    const sello = () => new Date().toLocaleString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+    const res = { total: filas.length, asignados: 0, yaEstaban: 0, creados: [], errores: 0 };
+    for (const f of filas) {
+      let i = porDni[f.dni];
+      if (i === undefined) {
+        const n = norm(f.completo).replace(/[^a-z0-9]/g, "");
+        if (n) i = porNombre[n];
+      }
+      try {
+        if (i !== undefined) {
+          const l = nuevos[i];
+          if ((l.seccion || "") === f.seccion) {
+            res.yaEstaban++;
+            continue;
+          }
+          const act = {
+            ...l,
+            seccion: f.seccion,
+            dni: (l.dni || "").toString().trim() || f.dni,
+            historial: [...(l.historial || []), {
+              id: uid(), usuario: comoLlamar(user), fecha: sello(),
+              accion: "Sección asignada desde el listado oficial",
+              cambios: [`seccion: "${l.seccion || "sin asignar"}" → "${f.seccion}"`]
+            }].slice(-200)
+          };
+          await DB.guardarLegajo(act);
+          nuevos[i] = act;
+          res.asignados++;
+        } else {
+          const l = {
+            ...nuevoLegajo(),
+            apellido: f.apellido,
+            nombre: f.nombre,
+            dni: f.dni,
+            seccion: f.seccion,
+            listado: listadoNuevos || "2do listado",
+            fechaAlta: hoy(),
+            historial: [{
+              id: uid(), usuario: comoLlamar(user), fecha: sello(),
+              accion: "Legajo creado desde el listado oficial",
+              cambios: [`${f.completo} · DNI ${f.dni} · ${f.seccion}`]
+            }]
+          };
+          await DB.guardarLegajo(l);
+          nuevos.push(l);
+          porDni[f.dni] = nuevos.length - 1;
+          res.creados.push(l);
+        }
+      } catch (e) {
+        res.errores++;
+      }
+    }
+    setData({ ...data, legajos: nuevos });
+    const tocados = res.asignados + res.creados.length;
+    toast(tocados
+      ? `Listo: ${res.asignados} legajo${res.asignados === 1 ? "" : "s"} asignado${res.asignados === 1 ? "" : "s"} y ${res.creados.length} creado${res.creados.length === 1 ? "" : "s"}`
+      : "Todos los aspirantes ya estaban en su sección", tocados ? "ok" : "info");
+    if (tocados) {
+      const av = await publicarAviso(user, `${comoLlamar(user)} repartió ${tocados} aspirantes por sección desde el listado oficial`);
+      if (av) setAvisos(av);
+      registrarPaso(user, "Importó el listado oficial", `${tocados} legajos`).then(r => r && setRecorrido(r));
+    }
+    return res;
+  };
+
   const pedirBorrar = l => setConfirmar({
     titulo: "Eliminar legajo",
-    texto: `Vas a eliminar definitivamente el legajo de ${l.apellido || "este aspirante"}. Si la persona dejó el curso, conviene marcarla como Baja o Desistió: así queda en el historial.`,
+    texto: `Vas a eliminar definitivamente el legajo de ${l.apellido || "este aspirante"}. Si la persona dejó el curso, conviene marcarla como Baja, Desistió o Desafectado: así queda en el historial.`,
     onOk: async () => {
       setConfirmar(null);
       try {
@@ -4850,9 +5068,9 @@ function App() {
 
   const listado = h("div", { className: "fade", style: { maxWidth: 1100, margin: "0 auto", padding: "0 16px 60px" } },
     h("div", { style: { margin: "20px 0 6px" } },
-      h("h2", { style: { fontSize: 22, color: "var(--acc2)" } }, enBajas ? "Bajas y Desistieron" : "Legajos activos"),
+      h("h2", { style: { fontSize: 22, color: "var(--acc2)" } }, enBajas ? "Bajas, Desistieron y Desafectados" : "Legajos activos"),
       h("div", { style: { fontSize: 13, color: "var(--txt-dim)" } },
-        enBajas ? "Aspirantes que desistieron o causaron baja. Conservan todo su historial y se pueden reincorporar."
+        enBajas ? "Aspirantes que causaron baja, desistieron o fueron desafectados. Conservan todo su historial y se pueden reincorporar."
           : "Al asignar la sección en el legajo, el aspirante aparece solo en la pestaña de su sección.")),
     h("div", { style: { display: "flex", gap: 7, flexWrap: "wrap", margin: "14px 0 4px" } },
       h("button", { className: "pill-sec" + (fSeccion === "" ? " on" : ""), onClick: () => setFSeccion("") }, "Todas ", h("b", null, delGrupo.length)),
@@ -4874,7 +5092,7 @@ function App() {
           value: q, onChange: e => setQ(e.target.value)
         })),
       enBajas ? h("select", { className: "inp", style: { width: "auto", minWidth: 120 }, value: fEstado, onChange: e => setFEstado(e.target.value) },
-        h("option", { value: "" }, "Bajas y desistieron"), ESTADOS_INACTIVOS.map(e => h("option", { key: e, value: e }, e))) : null,
+        h("option", { value: "" }, "Bajas, desistieron y desafectados"), ESTADOS_INACTIVOS.map(e => h("option", { key: e, value: e }, e))) : null,
       h("select", { className: "inp", style: { width: "auto", minWidth: 120 }, value: fListado, onChange: e => setFListado(e.target.value) },
         h("option", { value: "" }, "Todos los listados"), LISTADOS.map(e => h("option", { key: e, value: e }, e))),
       h("select", { className: "inp", style: { width: "auto", minWidth: 110 }, value: fSexo, onChange: e => setFSexo(e.target.value) },
@@ -4899,7 +5117,7 @@ function App() {
       style: { display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(min(300px,100%),1fr))", gap: 14 }
     }, enPantalla.map(tarjeta),
       filtrados.length === 0 ? h("div", { style: { gridColumn: "1/-1", textAlign: "center", padding: 50, color: "var(--txt-dim)" } },
-        enBajas ? "No hay bajas ni desistimientos en este filtro." : "No hay legajos que coincidan.") : null),
+        enBajas ? "No hay bajas, desistimientos ni desafectados en este filtro." : "No hay legajos que coincidan.") : null),
     totalPaginas > 1 ? h("div", { style: { display: "flex", gap: 8, justifyContent: "center", alignItems: "center", marginTop: 24, flexWrap: "wrap" } },
       h("button", { className: "btn btn-ghost", disabled: pagActual === 1, onClick: () => setPagina(pagActual - 1) }, "Anterior"),
       h("span", { style: { fontSize: 13, color: "var(--txt-dim)" } }, `${pagActual} / ${totalPaginas}`),
@@ -4955,7 +5173,8 @@ function App() {
     data, setData, toast
   }) : vista === "admin" && user.rol === "admin" ? h(Administracion, {
     legajos: data.legajos, usuarios: data.usuarios, accesos, recorrido, avisos,
-    onAbrir: l => setSel(l), onCompletar: completarDesdeListado, avisar: toast
+    onAbrir: l => setSel(l), onCompletar: completarDesdeListado, avisar: toast,
+    onImportarSecciones: importarSecciones
   }) : vista === "estadisticas" ? h(Estadisticas, {
     legajos: visibles, usuarios: data.usuarios, toast,
     onCompletar: esAdmin(user) && ASPIRANTES_SEMILLA.length ? completarDesdeListado : null
