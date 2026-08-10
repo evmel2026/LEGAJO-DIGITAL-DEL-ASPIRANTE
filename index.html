@@ -300,7 +300,7 @@ const h = React.createElement;
 const APP_NOMBRE = "LEGAJO DIGITAL DEL ASPIRANTE";
 const APP_CORTO = "Legajo Digital";
 const APP_SUB = "del Aspirante";
-const APP_VER = "4.3";
+const APP_VER = "4.4";
 
 // ══════════════════════════════════════════════════════════════
 //  CONEXIÓN A SUPABASE
@@ -4996,6 +4996,7 @@ function PersonalACargo({ usuarios, acargo, onGuardar, onGuardarUsuarios, puedeE
   const [secIds, setSecIds] = useState({});       // ids elegidos para cada sección, sin guardar
   const [ocupado, setOcupado] = useState(false);
   const [aBorrar, setABorrar] = useState(null);   // { tipo, clave }
+  const [editNombre, setEditNombre] = useState(null); // { id, grado, nombre }
   useEffect(() => { setMapa(acargo || {}); }, [acargo]);
   const conMando = (usuarios || []).filter(u => u.rol !== "supervisor");
   const faltanUsuarios = PERSONAL_2DA.filter(f => !buscarEnUsuarios(usuarios, f));
@@ -5022,6 +5023,24 @@ function PersonalACargo({ usuarios, acargo, onGuardar, onGuardarUsuarios, puedeE
       setSecIds(resto);
       setEditSec("");
       aviso(ids.length ? sec + ": instructores guardados" : sec + " quedó sin instructor a cargo", "ok");
+    } catch (e) {
+      aviso("No se pudo guardar: " + e.message, "err");
+    }
+    setOcupado(false);
+  };
+
+  // ───────── Corregir el grado o el apellido de un instructor ─────────
+  const guardarNombre = async () => {
+    if (!editNombre) return;
+    const nombre = (editNombre.nombre || "").trim();
+    if (!nombre) { aviso("El apellido y nombre no puede quedar vacío", "err"); return; }
+    const nu = (usuarios || []).map(u => u.id === editNombre.id
+      ? { ...u, grado: (editNombre.grado || "").trim(), nombre } : u);
+    setOcupado(true);
+    try {
+      await onGuardarUsuarios(nu);
+      setEditNombre(null);
+      aviso("Nombre corregido en todo el sistema", "ok");
     } catch (e) {
       aviso("No se pudo guardar: " + e.message, "err");
     }
@@ -5103,16 +5122,43 @@ function PersonalACargo({ usuarios, acargo, onGuardar, onGuardarUsuarios, puedeE
     key: llave, className: "btn " + cls, style: { padding: "4px 10px", fontSize: 12.5 }, onClick, title: titulo || txt, disabled: ocupado
   }, txt);
 
-  const selector = (ids, onToggle) => h("div", { style: { display: "flex", gap: 6, flexWrap: "wrap", marginTop: 10 } },
-    conMando.length ? conMando.map(u => {
-      const puesto = ids.includes(u.id);
-      return h("button", {
-        key: u.id,
-        className: "pill-sec" + (puesto ? " on" : ""),
-        onClick: () => onToggle(u.id)
-      }, (puesto ? "\u2713 " : "") + conGrado(u));
-    }) : h("span", { style: { fontSize: 12.5, color: "var(--txt-dim)" } },
-      "Todavía no hay instructores creados. Creálos en la pestaña Usuarios y volvé acá."));
+  const selector = (ids, onToggle) => {
+    const puestos = (usuarios || []).filter(u => ids.includes(u.id));
+    return h("div", { style: { marginTop: 10 } },
+      h("div", { style: { display: "flex", gap: 6, flexWrap: "wrap" } },
+        conMando.length ? conMando.map(u => {
+          const puesto = ids.includes(u.id);
+          return h("button", {
+            key: u.id,
+            className: "pill-sec" + (puesto ? " on" : ""),
+            onClick: () => onToggle(u.id)
+          }, (puesto ? "\u2713 " : "") + conGrado(u));
+        }) : h("span", { style: { fontSize: 12.5, color: "var(--txt-dim)" } },
+          "Todavía no hay instructores creados. Creálos en la pestaña Usuarios y volvé acá.")),
+      puestos.length ? h("div", { style: { marginTop: 12, paddingTop: 10, borderTop: "1px dashed var(--border)" } },
+        h("div", { style: { fontSize: 11.5, color: "var(--txt-dim)", textTransform: "uppercase", letterSpacing: .7, marginBottom: 8 } },
+          "Corregir grado o apellido"),
+        h("div", { style: { display: "grid", gap: 6 } }, puestos.map(u =>
+          editNombre && editNombre.id === u.id
+            ? h("div", { key: u.id, style: { display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", padding: "8px 10px", background: "var(--panel2)", borderRadius: 9, border: "1px solid var(--acc)" } },
+                h("input", {
+                  className: "inp", style: { flex: "0 1 140px", minWidth: 110 },
+                  value: editNombre.grado, placeholder: "Grado",
+                  onChange: e => setEditNombre({ ...editNombre, grado: e.target.value })
+                }),
+                h("input", {
+                  className: "inp", style: { flex: "1 1 180px", minWidth: 150 },
+                  value: editNombre.nombre, placeholder: "Apellido y nombre",
+                  onChange: e => setEditNombre({ ...editNombre, nombre: e.target.value })
+                }),
+                btnMini("gn", "\ud83d\udcbe Guardar", "btn-lima", guardarNombre),
+                btnMini("cn", "Cancelar", "btn-ghost", () => setEditNombre(null)))
+            : h("div", { key: u.id, style: { display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", padding: "6px 10px", background: "var(--bg2)", borderRadius: 9, border: "1px solid var(--border)" } },
+                h("span", { style: { flex: 1, minWidth: 150, fontSize: 13 } }, conGrado(u)),
+                btnMini("en", "\u270e Editar nombre", "btn-ghost", () => setEditNombre({ id: u.id, grado: u.grado || "", nombre: u.nombre || "" }))))),
+        h("div", { style: { fontSize: 11.5, color: "var(--txt-dim)", marginTop: 8, lineHeight: 1.5 } },
+          "El cambio de grado o apellido se guarda en el usuario, as\u00ed que se actualiza en todas las pantallas y en las descargas.")) : null);
+  };
 
   const fila = ({ clave, nombres, editando, ids, onToggle, onEditar, onGuardarFila, onBorrarFila }) => h("div", {
     key: clave,
