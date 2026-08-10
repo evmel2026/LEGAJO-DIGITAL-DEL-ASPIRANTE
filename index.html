@@ -300,7 +300,7 @@ const h = React.createElement;
 const APP_NOMBRE = "LEGAJO DIGITAL DEL ASPIRANTE";
 const APP_CORTO = "Legajo Digital";
 const APP_SUB = "del Aspirante";
-const APP_VER = "4.1";
+const APP_VER = "4.3";
 
 // ══════════════════════════════════════════════════════════════
 //  CONEXIÓN A SUPABASE
@@ -389,7 +389,6 @@ const PERSONAL_2DA = [
   { grado: "Of. Subinsp.", apellido: "Romero", nombre: "Romero Yoseli", usuario: "romero", rol: "instructor", secciones: ["Sección 5"], modulos: ["Gamela"] },
   { grado: "Of. Subinsp.", apellido: "Quevedo", nombre: "Quevedo Pablo", usuario: "quevedo", rol: "instructor", secciones: ["Sección 5"], modulos: ["Módulo 4", "Módulo 5"] },
   { grado: "Sgto.", apellido: "Riquelme", nombre: "Riquelme Walter", usuario: "riquelme", rol: "instructor", secciones: ["Sección 5"], modulos: ["Módulo 3"] },
-  { grado: "Cabo 1°", apellido: "Vázquez", nombre: "Vázquez Mauricio", usuario: "vazquez", rol: "instructor", secciones: [], modulos: [] },
   { grado: "Of. Ppal.", apellido: "Cumillán", nombre: "Cumillán Ariel", usuario: "cumillan", rol: "supervisor", secciones: [], modulos: [] },
   { grado: "Of. Ppal.", apellido: "Catricura", nombre: "Catricura Juana", usuario: "catricura", rol: "supervisor", secciones: [], modulos: [] }
 ];
@@ -4999,6 +4998,7 @@ function PersonalACargo({ usuarios, acargo, onGuardar, onGuardarUsuarios, puedeE
   const [aBorrar, setABorrar] = useState(null);   // { tipo, clave }
   useEffect(() => { setMapa(acargo || {}); }, [acargo]);
   const conMando = (usuarios || []).filter(u => u.rol !== "supervisor");
+  const faltanUsuarios = PERSONAL_2DA.filter(f => !buscarEnUsuarios(usuarios, f));
   const aviso = (m, t) => avisar && avisar(m, t);
 
   // ───────── SECCIONES: se guardan sobre los usuarios ─────────
@@ -5149,6 +5149,25 @@ function PersonalACargo({ usuarios, acargo, onGuardar, onGuardarUsuarios, puedeE
       },
       onCancel: () => setABorrar(null)
     }) : null,
+    faltanUsuarios.length ? h("div", {
+      className: "card",
+      style: { padding: "14px 16px", marginBottom: 16, borderLeft: "4px solid var(--coral)", background: "var(--panel2)" }
+    }, h("div", { style: { display: "flex", gap: 10, alignItems: "flex-start", flexWrap: "wrap" } },
+      h("span", { style: { fontSize: 20 } }, "\u26a0\ufe0f"),
+      h("div", { style: { flex: 1, minWidth: 220 } },
+        h("b", { style: { fontFamily: "'Oswald'", fontSize: 15, letterSpacing: .4 } },
+          `Falta${faltanUsuarios.length === 1 ? "" : "n"} crear ${faltanUsuarios.length} usuario${faltanUsuarios.length === 1 ? "" : "s"}`),
+        h("div", { style: { fontSize: 12.5, color: "var(--txt-dim)", marginTop: 4, lineHeight: 1.5 } },
+          "Ac\u00e1 s\u00f3lo aparece gente que ya tiene usuario en el sistema. Estos figuran en la planilla pero todav\u00eda no est\u00e1n creados, por eso no los ves al editar: "),
+        h("div", { style: { display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 } },
+          faltanUsuarios.map(f => h("span", {
+            key: f.usuario, className: "tag",
+            style: { background: "var(--bg2)", color: "var(--coral)", border: "1px solid var(--border)" }
+          }, conGrado(f)))),
+        h("div", { style: { fontSize: 12.5, color: "var(--txt-dim)", marginTop: 8 } },
+          "Cre\u00e1los en la pesta\u00f1a ", h("b", { style: { color: "var(--acc2)" } }, "Usuarios"),
+          " \u2192 \u201cPlantel de la 2\u00aa convocatoria\u201d \u2192 ", h("b", null, "Crear usuario"),
+          ", y despu\u00e9s volv\u00e9 ac\u00e1.")))) : null,
     h("div", { style: { display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", marginBottom: 14 } },
       h("button", { className: "btn btn-ghost", onClick: exportarXls }, h(I.excel, { style: { width: 16, height: 16 } }), "Excel de las dos planillas"),
       h("button", { className: "btn btn-coral", onClick: exportarPdf }, h(I.pdf, { style: { width: 16, height: 16 } }), "PDF de las dos planillas"),
