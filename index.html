@@ -281,6 +281,16 @@ body{background-image:radial-gradient(58vw 44vw at 6% -6%, rgba(var(--acc-rgb),.
 @media (max-width:360px){
   .top-user{display:none}
 }
+/* ===== PIZARRA DE NOVEDADES ===== */
+.nota{position:relative;padding:14px 16px 13px;border-radius:16px;border:1px solid var(--border);background:var(--panel);box-shadow:var(--shadow);transition:.18s;display:flex;flex-direction:column;overflow:hidden}
+.nota::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--nota-c,var(--acc2))}
+.nota:hover{transform:translateY(-2px);border-color:var(--acc)}
+.nota-top{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:11.5px;color:var(--txt-dim)}
+.nota-nom{font-family:'Oswald';font-size:15.5px;letter-spacing:.5px;color:var(--acc2);background:none;border:none;padding:0;margin:8px 0 0;cursor:pointer;text-align:left;line-height:1.2}
+.nota-nom:hover{text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px}
+.nota-txt{font-size:13.5px;line-height:1.5;margin-top:6px;color:var(--txt);white-space:pre-wrap;word-break:break-word}
+.nota-pie{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:11px;font-size:11.5px;color:var(--txt-dim)}
+.nov-item{border-left:3px solid var(--nota-c,var(--acc2));background:var(--bg2);border-radius:10px;padding:9px 11px;font-size:12.5px;line-height:1.45}
 </style>
 
 </head>
@@ -300,7 +310,7 @@ const h = React.createElement;
 const APP_NOMBRE = "LEGAJO DIGITAL DEL ASPIRANTE";
 const APP_CORTO = "Legajo Digital";
 const APP_SUB = "del Aspirante";
-const APP_VER = "4.4";
+const APP_VER = "4.5";
 
 // ══════════════════════════════════════════════════════════════
 //  CONEXIÓN A SUPABASE
@@ -364,6 +374,31 @@ const ESTADOS_INACTIVOS = ["Desistió", "Baja", "Desafectado"];
 const SEXOS = ["Femenino", "Masculino"];
 const ASISTENCIA = ["Presente", "Ausente"];
 const esInactivo = l => ESTADOS_INACTIVOS.includes(l.estado || "Activo");
+// Cada estado tiene su propia fecha, así el listado madre las muestra separadas
+const CAMPO_FECHA_ESTADO = { "Baja": "fechaBaja", "Desistió": "fechaDesistio", "Desafectado": "fechaDesafectado" };
+const fechaDeEstado = (l, estado) => {
+  const k = CAMPO_FECHA_ESTADO[estado];
+  if (!k) return "";
+  if ((l.estado || "Activo") !== estado) return l[k] || "";
+  return l[k] || l.fechaBaja || l.fechaEstado || "";
+};
+// Fecha de alta institucional de la 2da convocatoria 2026
+const FECHA_ALTA_INICIAL = "2026-08-10";
+const selloFecha = () => new Date().toLocaleString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+// Tipos de novedad que se cargan en la ficha del aspirante y van a la pizarra
+const TIPOS_NOVEDAD = [
+  ["Novedad general", "📌", "var(--acc2)"],
+  ["Importante", "⚠️", "var(--coral)"],
+  ["Disciplina", "🚨", "var(--red)"],
+  ["Salud", "🩺", "var(--amber)"],
+  ["Familiar", "🏠", "var(--acc2)"],
+  ["Académica", "📚", "var(--green)"],
+  ["Alojamiento", "🛏️", "var(--acc2)"],
+  ["Felicitación", "🎖️", "var(--green)"]
+];
+const datoNovedad = t => TIPOS_NOVEDAD.find(x => x[0] === t) || TIPOS_NOVEDAD[0];
+const colorNovedad = t => datoNovedad(t)[2];
+const emojiNovedad = t => datoNovedad(t)[1];
 const LISTADOS = ["1er listado", "2do listado", "3er listado"];
 const ALOJAMIENTOS = ["Módulo 2", "Módulo 3", "Módulo 4", "Módulo 5", "Gamela"];
 const PROVINCIAS_AR = ["Neuquén", "Río Negro", "Buenos Aires", "CABA", "Catamarca", "Chaco", "Chubut", "Córdoba", "Corrientes", "Entre Ríos", "Formosa", "Jujuy", "La Pampa", "La Rioja", "Mendoza", "Misiones", "Salta", "San Juan", "San Luis", "Santa Cruz", "Santa Fe", "Santiago del Estero", "Tierra del Fuego", "Tucumán"];
@@ -530,6 +565,9 @@ const nuevoLegajo = () => ({
   fechaEstado: "",
   fechaAlta: "",
   fechaBaja: "",
+  fechaDesistio: "",
+  fechaDesafectado: "",
+  novedades: [],
   sexo: "",
   asistencia: "",
   alojamiento: {
@@ -729,7 +767,8 @@ function migrarLegajo(l) {
   }
   if (!l.certMedico) l.certMedico = { tiene: "", desde: "", hasta: "", motivo: "" };
   if (!Array.isArray(l.historial)) l.historial = [];
-  ["sexo", "asistencia", "fechaEstado", "fechaAlta", "fechaBaja", "enfermedadInformar", "medicacionConsume"].forEach(k => {
+  if (!Array.isArray(l.novedades)) l.novedades = [];
+  ["sexo", "asistencia", "fechaEstado", "fechaAlta", "fechaBaja", "fechaDesistio", "fechaDesafectado", "enfermedadInformar", "medicacionConsume"].forEach(k => {
     if (l[k] === undefined) l[k] = "";
   });
   return l;
@@ -1052,7 +1091,7 @@ function nombresDelModulo(usuarios, acargo, modulo) {
 }
 
 // ====== AUDITORÍA ======
-const CAMPOS_AUDIT = [["estado", "Estado"], ["motivoEstado", "Motivo"], ["asistencia", "Asistencia"], ["sexo", "Sexo"], ["listado", "Listado"], ["seccion", "Sección"], ["apellido", "Apellido"], ["nombre", "Nombre"], ["dni", "DNI"], ["telefono", "Teléfono"], ["email", "Email"], ["domicilioReal", "Domicilio"], ["legajoNro", "N° de legajo"], ["credencial", "Credencial"], ["observaciones", "Observaciones"], ["fechaAlta", "Fecha de alta"], ["fechaBaja", "Fecha de baja"], ["enfermedadInformar", "Enfermedad a informar"], ["medicacionConsume", "Medicación"]];
+const CAMPOS_AUDIT = [["estado", "Estado"], ["motivoEstado", "Motivo"], ["asistencia", "Asistencia"], ["sexo", "Sexo"], ["listado", "Listado"], ["seccion", "Sección"], ["apellido", "Apellido"], ["nombre", "Nombre"], ["dni", "DNI"], ["telefono", "Teléfono"], ["email", "Email"], ["domicilioReal", "Domicilio"], ["legajoNro", "N° de legajo"], ["credencial", "Credencial"], ["observaciones", "Observaciones"], ["fechaAlta", "Fecha de alta"], ["fechaBaja", "Fecha de baja"], ["fechaDesistio", "Fecha de desistimiento"], ["fechaDesafectado", "Fecha de desafectación"], ["enfermedadInformar", "Enfermedad a informar"], ["medicacionConsume", "Medicación"]];
 function diffLegajo(viejo, nuevo) {
   if (!viejo) return ["Alta del legajo"];
   const out = [];
@@ -1060,7 +1099,7 @@ function diffLegajo(viejo, nuevo) {
     if ((viejo[k] || "") !== (nuevo[k] || "")) out.push(`${et}: "${viejo[k] || "—"}" → "${nuevo[k] || "—"}"`);
   });
   if ((viejo.certMedico || {}).hasta !== (nuevo.certMedico || {}).hasta) out.push("Certificado médico actualizado");
-  [["hijos", "Hijos"], ["hermanos", "Hermanos"], ["estudios", "Estudios"], ["empleos", "Empleos"], ["recargos", "Recargos"], ["sanciones", "Sanciones"], ["expedientes", "Expedientes"], ["carpetas", "Carpetas"]].forEach(([k, et]) => {
+  [["hijos", "Hijos"], ["hermanos", "Hermanos"], ["estudios", "Estudios"], ["empleos", "Empleos"], ["recargos", "Recargos"], ["sanciones", "Sanciones"], ["expedientes", "Expedientes"], ["carpetas", "Carpetas"], ["novedades", "Novedades"]].forEach(([k, et]) => {
     const a = (viejo[k] || []).length, b = (nuevo[k] || []).length;
     if (a !== b) out.push(`${et}: ${a} → ${b}`);
   });
@@ -1771,7 +1810,8 @@ function Detalle({
   onBack,
   rol,
   puede,
-  toast
+  toast,
+  autor
 }) {
   const [l, setL] = useState(JSON.parse(JSON.stringify(legajo)));
   const [tab, setTab] = useState("personales");
@@ -1797,6 +1837,27 @@ function Detalle({
       toast("Error: " + e.message, "err");
     }
     setBusy(false);
+  };
+  // Las novedades se guardan solas: se cargan y quedan en la pizarra de inicio
+  const agregarNovedad = async n => {
+    const nl = { ...l, novedades: [...(l.novedades || []), n] };
+    setL(nl);
+    try {
+      await onSave(nl);
+      toast("Novedad cargada", "ok");
+    } catch (e) {
+      toast("Error: " + e.message, "err");
+    }
+  };
+  const borrarNovedad = async id => {
+    const nl = { ...l, novedades: (l.novedades || []).filter(x => x.id !== id) };
+    setL(nl);
+    try {
+      await onSave(nl);
+      toast("Novedad borrada", "ok");
+    } catch (e) {
+      toast("Error: " + e.message, "err");
+    }
   };
   const TABS = [["personales", "Datos personales"], ["familia", "Grupo familiar"], ["padres", "Padres y hermanos"], ["estudios", "Estudios y empleos"], ["medico", "Antecedentes médicos"], ["carnet", "Licencia y talles"], ["antecedentes", "Antecedentes"], ["operativo", "Legajo operativo"], ["docs", "Documentación"], ["historial", "Historial"]];
   return /*#__PURE__*/React.createElement("div", {
@@ -1897,7 +1958,7 @@ function Detalle({
       WebkitTextFillColor: "transparent",
       backgroundClip: "text"
     }
-  }, (l.apellido || "Nuevo").toUpperCase(), ", ", l.nombre), /*#__PURE__*/React.createElement("div", {
+  }, l.apellido || l.nombre ? nombreFormal(l) : "NUEVO"), /*#__PURE__*/React.createElement("div", {
     style: {
       color: "var(--txt-dim)",
       fontSize: 14,
@@ -1946,7 +2007,9 @@ function Detalle({
       background: "rgba(63,185,80,.15)",
       color: "var(--green)"
     }
-  }, "Carnet ", l.carnet.categoria || "")))), /*#__PURE__*/React.createElement("div", {
+  }, "Carnet ", l.carnet.categoria || ""))), h(NovedadesBox, {
+    l, autor, editable, onAgregar: agregarNovedad, onBorrar: borrarNovedad
+  })), /*#__PURE__*/React.createElement("div", {
     className: "tabbar",
     style: {
       overflowX: "auto",
@@ -2077,6 +2140,14 @@ function TabPersonales({
   }), h(Campo, {
     l: "Fecha de baja",
     ...c("fechaBaja"),
+    type: "date"
+  }), h(Campo, {
+    l: "Fecha de desistimiento",
+    ...c("fechaDesistio"),
+    type: "date"
+  }), h(Campo, {
+    l: "Fecha de desafectación",
+    ...c("fechaDesafectado"),
     type: "date"
   })), h("div", { className: "subsec" }, "Salud a informar y certificado médico"), h("div", {
     style: { display: "flex", flexWrap: "wrap", gap: 14 }
@@ -3404,7 +3475,7 @@ function exportarPDFLegajo(l) {
   d.setTextColor(...G);
   d.setFontSize(13);
   d.setFont("helvetica", "bold");
-  d.text(`${(l.apellido || "").toUpperCase()}, ${l.nombre || ""}`, 172, 15, {
+  d.text(nombreFormal(l), 172, 15, {
     align: "right"
   });
   d.setTextColor(180, 180, 180);
@@ -3530,6 +3601,9 @@ function exportarPDFLegajo(l) {
     tabla("Amonestaciones / Sanciones", ["Tipo", "Fecha", "Días", "Descripción"], (l.sanciones || []).map(s => [s.tipo, fmtFecha(s.fecha), s.dias || "—", s.descripcion]));
     tabla("Expedientes", ["N°", "Fecha", "Carátula", "Estado"], (l.expedientes || []).map(e => [e.nro, fmtFecha(e.fecha), e.caratula, e.estado]));
   }
+  if ((l.novedades || []).length) tabla("Novedades cargadas", ["Fecha", "Tipo", "Novedad", "Cargada por"],
+    [...(l.novedades || [])].sort((a, b) => (b.fecha || "").localeCompare(a.fecha || ""))
+      .map(n => [fmtFecha(n.fecha), n.tipo || "", n.texto || "", n.autor || ""]));
   d.save(`Legajo_${(l.apellido || "aspirante").replace(/[^A-Za-zÁÉÍÓÚÑáéíóúñ ]/g, "").trim().replace(/ /g, "_")}_${l.dni || l.id}.pdf`);
 }
 
@@ -4736,6 +4810,7 @@ function Shell(props) {
     ["l1", "\ud83d\udcc4", "1er Listado General"],
     ["l2", "\ud83d\udcc4", "2do Listado General"],
     ["actualizado", "\u2705", "Listado Actualizado"],
+    ["madre", "📖", "Listado madre"],
     ["femeninos", "\u2640\ufe0f", "Femeninos"],
     ["masculinos", "\u2642\ufe0f", "Masculinos"],
     ["alojamiento", "\ud83c\udfe0", "Alojamiento DCFyCCCO"]
@@ -4836,6 +4911,10 @@ function Shell(props) {
         h("button", { className: "iconbtn", onClick: onLogout, title: "Salir" }, h(I.logout, { style: { width: 16, height: 16 } })))),
       h("div", { className: "navscroll" },
         h("button", {
+          className: "tabpill " + (vista === "inicio" ? "active" : ""),
+          onClick: () => { cerrarTodo(); setVista("inicio"); }
+        }, "📋 Inicio"),
+        h("button", {
           className: "tabpill " + (vista === "legajos" ? "active" : ""),
           onClick: () => { cerrarTodo(); setVista("legajos"); }
         }, "Legajos"),
@@ -4885,7 +4964,42 @@ function Shell(props) {
 // ══════════════════════════════════════════════════════════
 //  LISTADOS OFICIALES — una pestaña por cada hoja de la planilla
 // ══════════════════════════════════════════════════════════
-const nombreDe = l => `${l.apellido || ""} ${l.nombre || ""}`.replace(/\s+/g, " ").trim();
+// Legajos cargados por versiones anteriores quedaron con el nombre completo
+// repetido adentro del apellido (apellido "PEREZ JUAN CARLOS" + nombre "JUAN
+// CARLOS"). Esto lo muestra bien aunque el dato todavía no esté arreglado, y
+// desde Administración → Panel se corrige de una vez en toda la base.
+const sinRepetir = (apellido, nombre) => {
+  const a = (apellido || "").toString().replace(/\s+/g, " ").trim();
+  const n = (nombre || "").toString().replace(/\s+/g, " ").trim();
+  if (!a || !n) return { ap: a, no: n };
+  const na = norm(a), nn = norm(n);
+  if (na === nn) return { ap: a, no: "" };
+  if (na.endsWith(" " + nn)) return { ap: a.slice(0, a.length - n.length).trim(), no: n };
+  if (nn.startsWith(na + " ")) return { ap: a, no: n.slice(a.length).trim() };
+  return { ap: a, no: n };
+};
+const nombreDe = l => {
+  const p = sinRepetir(l.apellido, l.nombre);
+  return `${p.ap} ${p.no}`.replace(/\s+/g, " ").trim();
+};
+const nombreFormal = l => {
+  const p = sinRepetir(l.apellido, l.nombre);
+  if (!p.ap && !p.no) return "—";
+  return `${p.ap.toUpperCase()}${p.ap && p.no ? ", " : ""}${p.no}`;
+};
+// Cómo tendrían que quedar guardados apellido y nombre. Sólo se toca lo que
+// está realmente repetido: un apellido compuesto cargado solo no se parte.
+const arreglarNombre = l => {
+  const a = (l.apellido || "").toString().replace(/\s+/g, " ").trim();
+  const n = (l.nombre || "").toString().replace(/\s+/g, " ").trim();
+  const p = sinRepetir(a, n);
+  if (a && n && !p.no) return partirApellidoNombre(p.ap);
+  return { apellido: p.ap, nombre: p.no };
+};
+const nombreRepetido = l => {
+  const r = arreglarNombre(l);
+  return (r.apellido || "") !== (l.apellido || "") || (r.nombre || "") !== (l.nombre || "");
+};
 const ordenNombre = (a, b) => norm(nombreDe(a)).localeCompare(norm(nombreDe(b)), "es");
 const alojDe = l => (l.alojamiento || {}).modulo || "";
 const habDe = l => (l.alojamiento || {}).habitacion || "";
@@ -5267,19 +5381,71 @@ function PersonalACargo({ usuarios, acargo, onGuardar, onGuardarUsuarios, puedeE
 const COLS_ALOJ = ["N°", "Apellido y Nombre", "DNI", "Edad", "Sexo", "Habitación", "Sección"];
 const filaAlojTexto = (l, i) => [i + 1, nombreDe(l), l.dni || "", l.edad || "", l.sexo || "", habDe(l), l.seccion || "Sin asignar"];
 
-function AlojamientoVista({ legajos, onAbrir, usuarios, acargo }) {
+function AlojamientoVista({ legajos, onAbrir, usuarios, acargo, user, onGuardar }) {
   const [sub, setSub] = useState(ALOJAMIENTOS[0]);
   const [q, setQ] = useState("");
+  const [mover, setMover] = useState(null);
+  const [dest, setDest] = useState("");
+  const [hab, setHab] = useState("");
+  const [busy, setBusy] = useState(false);
   const activos = useMemo(() => legajos.filter(l => !esInactivo(l)), [legajos]);
   const grupos = useMemo(() => ALOJAMIENTOS.concat(["Sin asignar"]), []);
   const deGrupo = g => activos.filter(l => (alojDe(l) || "Sin asignar") === g).sort(ordenNombre);
   const nq = norm(q).trim();
   const filas = deGrupo(sub).filter(l => !nq || norm(`${nombreDe(l)} ${l.dni || ""} ${habDe(l)} ${l.seccion || ""}`).includes(nq));
+  // Mueve de lugar quien puede editar ese legajo: las administradoras siempre y
+  // los instructores dentro de las secciones que tienen a cargo
+  const puedeMover = l => !!onGuardar && puedeEditarLegajo(user, l);
+  const abrirMover = l => {
+    setMover(l);
+    setDest(alojDe(l) || "Sin asignar");
+    setHab(habDe(l) || "");
+  };
+  const guardarMover = async () => {
+    setBusy(true);
+    const nuevo = {
+      ...mover,
+      alojamiento: { ...(mover.alojamiento || {}), modulo: dest === "Sin asignar" ? "" : dest, habitacion: (hab || "").trim() }
+    };
+    try {
+      await onGuardar(nuevo);
+    } catch (e) {}
+    setBusy(false);
+    setMover(null);
+  };
+  const cols = COLS_ALOJ.concat(onGuardar ? ["Lugar"] : []);
   const cont = { maxWidth: 1200, margin: "0 auto", padding: "0 16px 60px" };
   return h("div", { className: "fade", style: cont },
+    mover ? h(Modal, {
+      titulo: "Cambiar de lugar", emoji: "🛏️", ancho: 470,
+      onCerrar: () => setMover(null)
+    }, h("div", { style: { fontFamily: "'Oswald'", fontSize: 17, color: "var(--acc2)", letterSpacing: .5 } }, nombreDe(mover)),
+      h("div", { style: { fontSize: 12.5, color: "var(--txt-dim)", marginBottom: 16, marginTop: 2, lineHeight: 1.5 } },
+        `DNI ${mover.dni || "—"} · ${mover.seccion || "sin sección"} · ${mover.sexo || "sin sexo cargado"}`,
+        h("br", null),
+        `Hoy está en ${alojDe(mover) || "sin asignar"}${habDe(mover) ? " · habitación " + habDe(mover) : ""}`),
+      h("label", { style: { fontSize: 11.5, color: "var(--txt-dim)" } }, "Módulo o gamela"),
+      h("select", { className: "inp", value: dest, onChange: e => setDest(e.target.value) },
+        grupos.map(g => h("option", { key: g, value: g },
+          g === "Sin asignar" ? "Sin asignar (queda sin lugar)" : `${g} · ${deGrupo(g).length} alojados`))),
+      h("label", { style: { fontSize: 11.5, color: "var(--txt-dim)", display: "block", marginTop: 12 } }, "Habitación"),
+      h("input", {
+        className: "inp", value: hab, placeholder: "Número o nombre de la habitación",
+        onChange: e => setHab(e.target.value)
+      }),
+      dest !== "Sin asignar" && nombresDelModulo(usuarios, acargo, dest)
+        ? h("div", { style: { fontSize: 12, color: "var(--txt-dim)", marginTop: 12, borderLeft: "3px solid var(--coral)", paddingLeft: 10, lineHeight: 1.5 } },
+            `👮 A cargo de ${dest}: ${nombresDelModulo(usuarios, acargo, dest)}`)
+        : null,
+      h("div", { style: { display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 18 } },
+        h("button", { className: "btn btn-ghost", onClick: () => setMover(null) }, "Cancelar"),
+        h("button", { className: "btn btn-gold", disabled: busy, onClick: guardarMover },
+          busy ? h("span", { className: "spin" }) : "Guardar el cambio"))) : null,
     h("h2", { style: { fontSize: 26, color: "var(--acc2)", margin: "22px 0 4px" } }, "Distribución de alojamiento del DCFyCCCO"),
     h("div", { style: { fontSize: 13, color: "var(--txt-dim)", marginBottom: 16, lineHeight: 1.5 } },
-      "C\u00f3mo est\u00e1n repartidos los aspirantes en actividad entre los m\u00f3dulos y la gamela. El alojamiento de cada uno se edita en su legajo, pesta\u00f1a Legajo operativo."),
+      onGuardar
+        ? "Cómo están repartidos los aspirantes en actividad entre los módulos y la gamela. Con el botón de cada fila los cambiás de lugar o les asignás uno si todavía no tienen, y el cambio se ve al instante en el legajo de la persona. Las administradoras pueden mover a cualquiera; cada instructor, a los de las secciones que tiene a cargo."
+        : "Cómo están repartidos los aspirantes en actividad entre los módulos y la gamela. El alojamiento de cada uno se edita en su legajo, pestaña Legajo operativo."),
     h("div", { style: { display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 } },
       grupos.map(g => {
         const n = deGrupo(g).length;
@@ -5310,19 +5476,255 @@ function AlojamientoVista({ legajos, onAbrir, usuarios, acargo }) {
     sub !== "Sin asignar" ? h("div", {
       className: "card",
       style: { padding: "12px 15px", marginBottom: 14, borderLeft: "4px solid var(--coral)", display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }
-    }, h("span", { style: { fontSize: 18 } }, "\ud83d\udc6e"),
+    }, h("span", { style: { fontSize: 18 } }, "👮"),
       h("span", { style: { fontSize: 13, minWidth: 0 } },
         h("span", { style: { color: "var(--txt-dim)" } }, `Instructor${aCargoDelModulo(usuarios, acargo, sub).length === 1 ? "" : "es"} a cargo de ${sub}: `),
-        nombresDelModulo(usuarios, acargo, sub) || h("i", { style: { color: "var(--txt-dim)" } }, "sin asignar todav\u00eda \u2014 se carga en Administraci\u00f3n \u2192 Personal a cargo"))) : null,
+        nombresDelModulo(usuarios, acargo, sub) || h("i", { style: { color: "var(--txt-dim)" } }, "sin asignar todavía — se carga en Administración → Personal a cargo"))) : null,
     h("div", { style: { fontSize: 13, color: "var(--txt-dim)", marginBottom: 12 } },
       `${filas.length} aspirante${filas.length === 1 ? "" : "s"} en ${sub}`,
-      nombresDelModulo(usuarios, acargo, sub) ? ` \u00b7 A/C ${nombresDelModulo(usuarios, acargo, sub)}` : ""),
+      nombresDelModulo(usuarios, acargo, sub) ? ` · A/C ${nombresDelModulo(usuarios, acargo, sub)}` : ""),
     h("div", { className: "card", style: { padding: 4 } },
       h(Tabla, {
-        cols: COLS_ALOJ,
-        filas: filas.map((l, i) => [i + 1, btnNombre(l, onAbrir), l.dni || "—", l.edad || "—", l.sexo || "—", habDe(l) || "—", l.seccion || "Sin asignar"]),
+        cols,
+        filas: filas.map((l, i) => {
+          const base = [i + 1, btnNombre(l, onAbrir), l.dni || "—", l.edad || "—", l.sexo || "—", habDe(l) || "—", l.seccion || "Sin asignar"];
+          if (!onGuardar) return base;
+          return base.concat([puedeMover(l)
+            ? h("button", {
+                className: "btn btn-ghost", style: { padding: "4px 10px", fontSize: 11.5 },
+                onClick: () => abrirMover(l)
+              }, sub === "Sin asignar" ? "Asignar" : "Mover")
+            : h("span", { style: { color: "var(--txt-dim)", fontSize: 11.5 } }, "—")]);
+        }),
         vacio: sub === "Sin asignar" ? "Todos los aspirantes tienen alojamiento asignado." : `Todavía no hay nadie asignado a ${sub}.`
       })));
+}
+
+// ══════════════════════════════════════════════════════════
+//  LISTADO MADRE — todos, incluidos bajas, desistieron y desafectados
+// ══════════════════════════════════════════════════════════
+const COLS_MADRE = ["N°", "Apellido y Nombre", "DNI", "Sexo", "Sección", "Alojamiento", "Listado", "Estado", "Motivo", "Fecha de alta", "Fecha de baja", "Fecha desistió", "Fecha desafectado"];
+const filaMadreTexto = (l, i) => [i + 1, nombreDe(l), l.dni || "", l.sexo || "", l.seccion || "Sin asignar",
+  alojDe(l) || "Sin asignar", l.listado || "1er listado", l.estado || "Activo", l.motivoEstado || "",
+  fmtFecha(l.fechaAlta), fmtFecha(fechaDeEstado(l, "Baja")), fmtFecha(fechaDeEstado(l, "Desistió")), fmtFecha(fechaDeEstado(l, "Desafectado"))];
+
+function ListadoMadre({ legajos, onAbrir }) {
+  const [q, setQ] = useState("");
+  const [fEst, setFEst] = useState("");
+  const todos = useMemo(() => [...(legajos || [])].sort(ordenNombre), [legajos]);
+  const nq = norm(q).trim();
+  const filas = todos.filter(l =>
+    (!fEst || (l.estado || "Activo") === fEst) &&
+    (!nq || norm(`${nombreDe(l)} ${l.dni || ""} ${l.seccion || ""} ${l.estado || ""} ${l.motivoEstado || ""} ${l.localidad || ""}`).includes(nq)));
+  const cuenta = e => todos.filter(l => (l.estado || "Activo") === e).length;
+  const cont = { maxWidth: 1300, margin: "0 auto", padding: "0 16px 60px" };
+  return h("div", { className: "fade", style: cont },
+    h("h2", { style: { fontSize: 26, color: "var(--acc2)", margin: "22px 0 4px" } }, "Listado madre"),
+    h("div", { style: { fontSize: 13, color: "var(--txt-dim)", marginBottom: 16, lineHeight: 1.5 } },
+      "El listado completo de la convocatoria: están todos, los que siguen y los que no — bajas, desistimientos, desafectados y egresados — con la fecha en que cada uno entró y la fecha del movimiento que lo sacó. Es el listado que no se toca: de acá sale cualquier informe histórico."),
+    h("div", { style: { display: "flex", gap: 7, flexWrap: "wrap", marginBottom: 14 } },
+      h("button", { className: "pill-sec" + (fEst === "" ? " on" : ""), onClick: () => setFEst("") }, "Todos ", h("b", null, todos.length)),
+      ESTADOS_ASP.map(e => h("button", {
+        key: e,
+        className: "pill-sec" + (fEst === e ? " on" : ""),
+        onClick: () => setFEst(e)
+      }, e, " ", h("b", null, cuenta(e))))),
+    h("div", { style: { display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", marginBottom: 12 } },
+      h("input", {
+        className: "inp", style: { width: "auto", flex: "1 1 240px", maxWidth: 380 },
+        placeholder: "Buscar por apellido, DNI, sección, motivo…",
+        value: q, onChange: e => setQ(e.target.value)
+      }),
+      h("button", {
+        className: "btn btn-ghost",
+        onClick: () => exportarHojas("LegajoDigital_ListadoMadre", [["Listado madre", COLS_MADRE, filas.map(filaMadreTexto)]])
+      }, h(I.excel, { style: { width: 16, height: 16 } }), "Excel"),
+      h("button", {
+        className: "btn btn-coral",
+        onClick: () => exportarPDFHojas("LegajoDigital_ListadoMadre", "Listado madre",
+          [[`Listado madre · ${filas.length} aspirante${filas.length === 1 ? "" : "s"}`, COLS_MADRE, filas.map(filaMadreTexto)]], true)
+      }, h(I.pdf, { style: { width: 16, height: 16 } }), "PDF")),
+    h("div", { style: { fontSize: 13, color: "var(--txt-dim)", marginBottom: 12 } },
+      `${filas.length} aspirante${filas.length === 1 ? "" : "s"}`,
+      fEst ? ` · ${fEst}` : "",
+      nq ? ` · filtrando "${q}"` : ""),
+    h("div", { className: "card", style: { padding: 4 } },
+      h(Tabla, {
+        cols: COLS_MADRE,
+        filas: filas.map((l, i) => [i + 1, btnNombre(l, onAbrir), l.dni || "—", l.sexo || "—", l.seccion || "Sin asignar",
+          alojDe(l) || "Sin asignar", l.listado || "1er listado", chipEstado(l.estado), l.motivoEstado || "—",
+          fmtFecha(l.fechaAlta), fmtFecha(fechaDeEstado(l, "Baja")), fmtFecha(fechaDeEstado(l, "Desistió")), fmtFecha(fechaDeEstado(l, "Desafectado"))]),
+        vacio: "No hay aspirantes cargados todavía."
+      })));
+}
+
+// ══════════════════════════════════════════════════════════
+//  PIZARRA DE NOVEDADES — pantalla de inicio
+// ══════════════════════════════════════════════════════════
+function Inicio({ legajos, onAbrir, user, onIrA }) {
+  const [fTipo, setFTipo] = useState("");
+  const [fSec, setFSec] = useState("");
+  const [q, setQ] = useState("");
+  const items = useMemo(() => {
+    const out = [];
+    (legajos || []).forEach(l => (l.novedades || []).forEach(n => out.push({ ...n, legajo: l })));
+    return out.sort((a, b) => (b.fecha || "").localeCompare(a.fecha || "") || (b.cargado || "").localeCompare(a.cargado || ""));
+  }, [legajos]);
+  const nq = norm(q).trim();
+  const filtradas = items.filter(n =>
+    (!fTipo || (n.tipo || "Novedad general") === fTipo) &&
+    (!fSec || (n.legajo.seccion || "Sin asignar") === fSec) &&
+    (!nq || norm(`${nombreDe(n.legajo)} ${n.texto || ""} ${n.tipo || ""} ${n.autor || ""} ${n.legajo.dni || ""}`).includes(nq)));
+  const desdeSemana = new Date(Date.now() - 6 * 86400000).toISOString().slice(0, 10);
+  const deLaSemana = items.filter(n => (n.fecha || "") >= desdeSemana).length;
+  const conNovedad = new Set(items.map(n => n.legajo.id)).size;
+  const activos = (legajos || []).filter(l => !esInactivo(l)).length;
+  const tiposUsados = TIPOS_NOVEDAD.filter(([t]) => items.some(n => (n.tipo || "Novedad general") === t));
+  const seccionesUsadas = SECCIONES.concat(["Sin asignar"]).filter(sec => items.some(n => (n.legajo.seccion || "Sin asignar") === sec));
+  const COLS_NOV = ["Fecha", "Aspirante", "DNI", "Sección", "Estado", "Tipo", "Novedad", "Cargada por"];
+  const filasNov = () => filtradas.map(n => [fmtFecha(n.fecha), nombreDe(n.legajo), n.legajo.dni || "",
+    n.legajo.seccion || "Sin asignar", n.legajo.estado || "Activo", n.tipo || "", n.texto || "", n.autor || ""]);
+  const kpi = (v, t, c) => h("div", { className: "card", style: { padding: 15, background: "var(--panel2)" } },
+    h("div", { style: { fontSize: 27, fontFamily: "'Oswald'", color: c || "var(--acc2)", lineHeight: 1 } }, v),
+    h("div", { style: { fontSize: 11.5, color: "var(--txt-dim)", textTransform: "uppercase", letterSpacing: .6, marginTop: 5 } }, t));
+  const cont = { maxWidth: 1200, margin: "0 auto", padding: "0 16px 60px" };
+  return h("div", { className: "fade", style: cont },
+    h("h2", { style: { fontSize: 27, color: "var(--acc2)", margin: "22px 0 4px" } }, "Pizarra de novedades"),
+    h("div", { style: { fontSize: 13, color: "var(--txt-dim)", marginBottom: 18, lineHeight: 1.5 } },
+      "Todo lo que se va cargando de los aspirantes, lo último primero. Las novedades se escriben en la ficha de cada uno —arriba, al lado de la foto— y caen acá para que las vea todo el instructorado. Tocá el nombre para abrir el legajo."),
+    h("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(150px,100%),1fr))", gap: 12, marginBottom: 18 } },
+      kpi(items.length, "novedades cargadas"),
+      kpi(deLaSemana, "en los últimos 7 días", "var(--coral)"),
+      kpi(conNovedad, "aspirantes con novedad"),
+      kpi(activos, "aspirantes en actividad", "var(--green)")),
+    items.length ? h("div", { style: { display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", marginBottom: 14 } },
+      h("input", {
+        className: "inp", style: { width: "auto", flex: "1 1 220px", maxWidth: 340 },
+        placeholder: "Buscar en las novedades…",
+        value: q, onChange: e => setQ(e.target.value)
+      }),
+      seccionesUsadas.length > 1 ? h("select", {
+        className: "inp", style: { width: "auto", minWidth: 140 },
+        value: fSec, onChange: e => setFSec(e.target.value)
+      }, h("option", { value: "" }, "Todas las secciones"),
+        seccionesUsadas.map(sec => h("option", { key: sec, value: sec }, sec))) : null,
+      h("button", {
+        className: "btn btn-ghost",
+        onClick: () => exportarHojas("LegajoDigital_Novedades", [["Novedades", COLS_NOV, filasNov()]])
+      }, h(I.excel, { style: { width: 16, height: 16 } }), "Excel"),
+      h("button", {
+        className: "btn btn-coral",
+        onClick: () => exportarPDFHojas("LegajoDigital_Novedades", "Pizarra de novedades",
+          [[`Novedades · ${filtradas.length} registro${filtradas.length === 1 ? "" : "s"}`, COLS_NOV, filasNov()]], true)
+      }, h(I.pdf, { style: { width: 16, height: 16 } }), "PDF")) : null,
+    tiposUsados.length ? h("div", { style: { display: "flex", gap: 7, flexWrap: "wrap", marginBottom: 16 } },
+      h("button", { className: "pill-sec" + (fTipo === "" ? " on" : ""), onClick: () => setFTipo("") }, "Todas ", h("b", null, items.length)),
+      tiposUsados.map(([t, e2]) => h("button", {
+        key: t,
+        className: "pill-sec" + (fTipo === t ? " on" : ""),
+        onClick: () => setFTipo(t)
+      }, e2, " ", t, " ", h("b", null, items.filter(n => (n.tipo || "Novedad general") === t).length)))) : null,
+    filtradas.length ? h("div", {
+      style: { display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(min(300px,100%),1fr))", gap: 14 }
+    }, filtradas.map(n => h("div", {
+      key: n.id + n.legajo.id,
+      className: "nota",
+      style: { "--nota-c": colorNovedad(n.tipo) }
+    }, h("div", { className: "nota-top" },
+      h("span", { style: { fontSize: 15 } }, emojiNovedad(n.tipo)),
+      h("b", { style: { color: colorNovedad(n.tipo), fontSize: 12 } }, n.tipo || "Novedad general"),
+      h("span", { style: { flex: 1 } }),
+      h("span", null, fmtFecha(n.fecha))),
+      h("button", { className: "nota-nom", onClick: () => onAbrir(n.legajo) }, nombreDe(n.legajo) || "Sin nombre"),
+      h("div", { className: "nota-txt" }, n.texto || ""),
+      h("div", { className: "nota-pie" },
+        h("span", { className: "tag", style: { background: colorEstado(n.legajo.estado).bg, color: colorEstado(n.legajo.estado).fg, fontSize: 11 } }, n.legajo.estado || "Activo"),
+        n.legajo.seccion ? h("span", { className: "tag", style: { background: "var(--bg2)", color: "var(--acc2)", fontSize: 11 } }, n.legajo.seccion) : null,
+        alojDe(n.legajo) ? h("span", { className: "tag", style: { background: "var(--bg2)", color: "var(--txt-dim)", fontSize: 11 } }, alojDe(n.legajo)) : null,
+        n.autor ? h("span", null, "· " + n.autor) : null)))) :
+      h("div", { className: "card", style: { padding: 40, textAlign: "center", color: "var(--txt-dim)", lineHeight: 1.6 } },
+        h("div", { style: { fontSize: 34, marginBottom: 8 } }, "📋"),
+        items.length
+          ? "Ninguna novedad coincide con este filtro."
+          : h("span", null, "Todavía no hay novedades cargadas. Entrá a ",
+              h("b", { style: { color: "var(--acc2)", cursor: "pointer" }, onClick: () => onIrA && onIrA("legajos") }, "Legajos"),
+              ", abrí un aspirante y cargá la primera desde el recuadro de arriba.")));
+}
+
+// ══════════════════════════════════════════════════════════
+//  NOVEDADES DEL ASPIRANTE — recuadro de la ficha
+// ══════════════════════════════════════════════════════════
+function NovedadesBox({ l, autor, editable, onAgregar, onBorrar }) {
+  const [abierto, setAbierto] = useState(false);
+  const [todas, setTodas] = useState(false);
+  const [tipo, setTipo] = useState(TIPOS_NOVEDAD[0][0]);
+  const [fecha, setFecha] = useState(hoy());
+  const [texto, setTexto] = useState("");
+  const [busy, setBusy] = useState(false);
+  const lista = [...(l.novedades || [])].sort((a, b) => (b.fecha || "").localeCompare(a.fecha || "") || (b.cargado || "").localeCompare(a.cargado || ""));
+  const enPantalla = todas ? lista : lista.slice(0, 3);
+  const guardar = async () => {
+    if (!texto.trim()) return;
+    setBusy(true);
+    await onAgregar({ id: uid(), tipo, fecha, texto: texto.trim(), autor: autor || "", cargado: new Date().toISOString() });
+    setBusy(false);
+    setTexto("");
+    setTipo(TIPOS_NOVEDAD[0][0]);
+    setFecha(hoy());
+    setAbierto(false);
+  };
+  return h("div", { style: { flexBasis: "100%", borderTop: "1px solid var(--border)", paddingTop: 14 } },
+    h("div", { style: { display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" } },
+      h("span", { style: { fontFamily: "'Oswald'", fontSize: 15, letterSpacing: 1, color: "var(--acc2)", textTransform: "uppercase" } }, "Novedades"),
+      h("span", { className: "tag", style: { background: "var(--bg2)", color: "var(--txt-dim)", fontSize: 11 } },
+        lista.length ? `${lista.length} cargada${lista.length === 1 ? "" : "s"}` : "sin novedades"),
+      h("span", { style: { flex: 1 } }),
+      editable ? h("button", {
+        className: abierto ? "btn btn-ghost" : "btn btn-lima",
+        style: { padding: "6px 13px", fontSize: 12.5 },
+        onClick: () => setAbierto(v => !v)
+      }, abierto ? "Cerrar" : "＋ Cargar novedad") : null),
+    abierto ? h("div", {
+      style: { marginTop: 12, background: "var(--bg2)", border: "1px solid var(--border)", borderRadius: 12, padding: 14 }
+    }, h("div", { style: { display: "flex", gap: 12, flexWrap: "wrap" } },
+      h("div", { style: { flex: "1 1 200px" } },
+        h("label", { style: { fontSize: 11.5, color: "var(--txt-dim)" } }, "Tipo de novedad"),
+        h("select", { className: "inp", value: tipo, onChange: e => setTipo(e.target.value) },
+          TIPOS_NOVEDAD.map(([t, e2]) => h("option", { key: t, value: t }, `${e2} ${t}`)))),
+      h("div", { style: { flex: "0 1 165px" } },
+        h("label", { style: { fontSize: 11.5, color: "var(--txt-dim)" } }, "Fecha"),
+        h("input", { className: "inp", type: "date", value: fecha, onChange: e => setFecha(e.target.value) }))),
+      h("label", { style: { fontSize: 11.5, color: "var(--txt-dim)", display: "block", marginTop: 10 } }, "Novedad"),
+      h("textarea", {
+        className: "inp", rows: 3, style: { resize: "vertical", fontFamily: "inherit" },
+        placeholder: "Qué pasó, cuándo y cómo se resolvió…",
+        value: texto, onChange: e => setTexto(e.target.value)
+      }),
+      h("div", { style: { display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 10, flexWrap: "wrap" } },
+        h("button", { className: "btn btn-ghost", onClick: () => { setAbierto(false); setTexto(""); } }, "Cancelar"),
+        h("button", { className: "btn btn-gold", disabled: busy || !texto.trim(), onClick: guardar },
+          busy ? h("span", { className: "spin" }) : "Guardar novedad")),
+      h("div", { style: { fontSize: 11.5, color: "var(--txt-dim)", marginTop: 8, lineHeight: 1.45 } },
+        "La novedad se guarda sola, sin tocar “Guardar cambios”, y aparece en la pizarra de Inicio.")) : null,
+    lista.length ? h("div", { style: { display: "grid", gap: 8, marginTop: 12 } },
+      enPantalla.map(n => h("div", {
+        key: n.id, className: "nov-item", style: { "--nota-c": colorNovedad(n.tipo) }
+      }, h("div", { style: { display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" } },
+        h("span", null, emojiNovedad(n.tipo)),
+        h("b", { style: { color: colorNovedad(n.tipo), fontSize: 12.5 } }, n.tipo || "Novedad general"),
+        h("span", { style: { color: "var(--txt-dim)", fontSize: 11.5 } }, fmtFecha(n.fecha)),
+        h("span", { style: { flex: 1 } }),
+        editable ? h("button", {
+          className: "iconbtn", title: "Borrar esta novedad", style: { padding: "0 4px", fontSize: 12 },
+          onClick: () => onBorrar(n.id)
+        }, "✕") : null),
+        h("div", { style: { marginTop: 4, whiteSpace: "pre-wrap" } }, n.texto || ""),
+        n.autor ? h("div", { style: { color: "var(--txt-dim)", fontSize: 11.5, marginTop: 4 } }, "Cargada por " + n.autor) : null)),
+      lista.length > 3 ? h("button", {
+        className: "btn btn-ghost",
+        style: { justifyContent: "center", fontSize: 12, padding: "6px" },
+        onClick: () => setTodas(v => !v)
+      }, todas ? "Ver sólo las últimas 3" : `Ver las ${lista.length} novedades`) : null) : null);
 }
 
 // ====== APP ======
@@ -5365,12 +5767,14 @@ function Tabla({ cols, filas, vacio }) {
         filas.map((f, i) => h("tr", { key: i, style: { background: i % 2 ? "transparent" : "var(--panel2)" } },
           f.map((c, j) => h("td", { key: j, style: { padding: "9px 10px", borderBottom: "1px solid var(--border)", verticalAlign: "top" } }, c)))))));
 }
-function Administracion({ legajos, usuarios, accesos, recorrido, avisos, onAbrir, onCompletar, avisar, onImportarPlanilla, acargo, onGuardarACargo, puedeEditarACargo, onGuardarUsuarios }) {
+function Administracion({ legajos, usuarios, accesos, recorrido, avisos, onAbrir, onCompletar, avisar, onImportarPlanilla, acargo, onGuardarACargo, puedeEditarACargo, onGuardarUsuarios, onSepararNombres, onFechaAlta }) {
   const [sub, setSub] = useState("");
   const refExcel = useRef(null);
   const [impListado, setImpListado] = useState("2do listado");
   const [impCargando, setImpCargando] = useState(false);
   const [impRes, setImpRes] = useState(null);
+  const [pisarAlta, setPisarAlta] = useState(false);
+  const [arreglando, setArreglando] = useState(false);
   const opciones = [
     ["accesos", "👁️", "Registro de Accesos", "Quién entró, cuándo y con qué rol"],
     ["recorrido", "🧭", "Recorrido de Usuarios", "Qué hizo cada persona dentro del sistema"],
@@ -5466,6 +5870,44 @@ function Administracion({ legajos, usuarios, accesos, recorrido, avisos, onAbrir
           h("button", { className: "btn btn-coral", onClick: () => exportarPDFLegajos(legajos, "Todos los legajos", "LegajoDigital_Completo") }, h(I.pdf, { style: { width: 16, height: 16 } }), "Exportar todo a PDF")),
         h("div", { style: { fontSize: 12, color: "var(--txt-dim)", marginTop: 12, lineHeight: 1.5 } },
           "El respaldo guarda todos los legajos en un archivo .json en tu equipo. Las contraseñas nunca se incluyen.")),
+      (onSepararNombres || onFechaAlta) ? (() => {
+        const repetidos = legajos.filter(nombreRepetido);
+        const sinAlta = legajos.filter(l => !(l.fechaAlta || "").trim());
+        return h("div", { className: "card", style: { padding: 20, marginTop: 14 } },
+          h("h3", { style: { color: "var(--acc2)", fontSize: 17, marginBottom: 6 } }, "🧰 Arreglos sobre todos los legajos"),
+          h("div", { style: { fontSize: 12.5, color: "var(--txt-dim)", marginBottom: 14, lineHeight: 1.55 } },
+            "Correcciones que se aplican de una sola vez a toda la base. Cada cambio queda asentado en el historial del aspirante, así que después podés ver qué se tocó y cuándo."),
+          h("div", { style: { display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" } },
+            h("button", {
+              className: "btn btn-lima", disabled: !repetidos.length || arreglando,
+              onClick: async () => {
+                setArreglando(true);
+                await onSepararNombres();
+                setArreglando(false);
+              }
+            }, arreglando ? "Corrigiendo…" : `🧩 Separar apellido y nombre (${repetidos.length})`),
+            h("span", { style: { fontSize: 12.5, color: "var(--txt-dim)", flex: "1 1 240px", lineHeight: 1.5 } },
+              repetidos.length
+                ? `Hay ${repetidos.length} legajo${repetidos.length === 1 ? "" : "s"} donde el apellido trae también el nombre completo. Al corregir queda el apellido solo en su campo y el nombre en el suyo.`
+                : "Ningún legajo tiene el nombre repetido adentro del apellido.")),
+          h("div", { style: { display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", marginTop: 16, paddingTop: 14, borderTop: "1px solid var(--border)" } },
+            h("button", {
+              className: "btn btn-ghost", disabled: !sinAlta.length,
+              onClick: () => onFechaAlta(false)
+            }, `📅 Fecha de alta ${fmtFecha(FECHA_ALTA_INICIAL)} a los que no tienen (${sinAlta.length})`),
+            pisarAlta
+              ? h("button", {
+                  className: "btn btn-red",
+                  onClick: async () => {
+                    setPisarAlta(false);
+                    await onFechaAlta(true);
+                  }
+                }, `Sí, ponerla en los ${legajos.length}`)
+              : h("button", { className: "btn btn-ghost", onClick: () => setPisarAlta(true) }, "♻️ Aplicarla a todos (pisa la que tengan)"),
+            pisarAlta ? h("button", { className: "btn btn-ghost", onClick: () => setPisarAlta(false) }, "Mejor no") : null),
+          h("div", { style: { fontSize: 12, color: "var(--txt-dim)", marginTop: 10, lineHeight: 1.5 } },
+            `La fecha de alta de la convocatoria es ${fmtFecha(FECHA_ALTA_INICIAL)}. Si alguno entró otro día, se lo cambiás a mano en su legajo, pestaña Datos personales.`));
+      })() : null,
       onImportarPlanilla ? h("div", { className: "card", style: { padding: 20, marginTop: 14 } },
         h("h3", { style: { color: "var(--acc2)", fontSize: 17, marginBottom: 6 } }, "\ud83d\udce5 Importar la planilla oficial"),
         h("div", { style: { fontSize: 12.5, color: "var(--txt-dim)", marginBottom: 14, lineHeight: 1.55 } },
@@ -5533,11 +5975,12 @@ function Administracion({ legajos, usuarios, accesos, recorrido, avisos, onAbrir
     ["Sin teléfono", legajos.filter(l => !(l.telefono || "").trim() && !esInactivo(l))],
     ["Licencia vencida", legajos.filter(l => l.carnet && l.carnet.posee && diasHasta(l.carnet.vencimiento) !== null && diasHasta(l.carnet.vencimiento) < 0)],
     ["Certificado médico vencido", legajos.filter(l => (l.certMedico || {}).tiene === "Sí" && diasHasta((l.certMedico || {}).hasta) !== null && diasHasta((l.certMedico || {}).hasta) < 0)],
-    ["Baja / desafectación sin motivo indicado", legajos.filter(l => esInactivo(l) && !(l.motivoEstado || "").trim())]
+    ["Baja / desafectación sin motivo indicado", legajos.filter(l => esInactivo(l) && !(l.motivoEstado || "").trim())],
+    ["Apellido y nombre repetidos", legajos.filter(nombreRepetido)]
   ];
   const filasRevision = () => {
     const f = [];
-    chequeos.forEach(([titulo, arr]) => arr.forEach(l => f.push([titulo, `${l.apellido || "—"}${l.nombre ? ", " + l.nombre : ""}`, l.dni || "—", l.seccion || "Sin asignar", l.estado || "Activo"])));
+    chequeos.forEach(([titulo, arr]) => arr.forEach(l => f.push([titulo, nombreFormal(l), l.dni || "—", l.seccion || "Sin asignar", l.estado || "Activo"])));
     return f;
   };
   const sinInstructor = SECCIONES.filter(sec => !aCargoDe(usuarios, sec).length);
@@ -5577,7 +6020,7 @@ function Administracion({ legajos, usuarios, accesos, recorrido, avisos, onAbrir
           className: "tag",
           style: { background: "var(--bg2)", color: "var(--txt)", border: "1px solid var(--border)", cursor: "pointer" },
           onClick: () => onAbrir(l)
-        }, `${l.apellido || "—"}${l.dni ? " · " + l.dni : ""}`)),
+        }, `${nombreDe(l) || "—"}${l.dni ? " · " + l.dni : ""}`)),
         arr.length > 40 ? h("span", { style: { fontSize: 12, color: "var(--txt-dim)", alignSelf: "center" } }, `+${arr.length - 40} más`) : null) : null)));
 }
 
@@ -5596,7 +6039,7 @@ function App() {
   const [fSexo, setFSexo] = useState("");
   const [fAsist, setFAsist] = useState("");
   const [fSeccion, setFSeccion] = useState("");
-  const [vista, setVista] = useState("legajos");
+  const [vista, setVista] = useState("inicio");
   const [pagina, setPagina] = useState(1);
   const [toastMsg, setToastMsg] = useState(null);
   const [tema, setTemaState] = useState(getTema());
@@ -5800,9 +6243,14 @@ function App() {
     if (!anterior && !l.fechaAlta) l.fechaAlta = hoy();
     if (anterior && !esInactivo(anterior) && esInactivo(l)) {
       l.fechaEstado = l.fechaEstado || hoy();
-      if (!l.fechaBaja) l.fechaBaja = hoy();
+      const kf = CAMPO_FECHA_ESTADO[l.estado];
+      if (kf && !l[kf]) l[kf] = hoy();
     }
-    if (esInactivo(anterior || {}) && !esInactivo(l)) l.fechaBaja = "";
+    if (esInactivo(anterior || {}) && !esInactivo(l)) {
+      l.fechaBaja = "";
+      l.fechaDesistio = "";
+      l.fechaDesafectado = "";
+    }
     await DB.guardarLegajo(l);
     const nuevos = anterior ? data.legajos.map(x => x.id === l.id ? l : x) : [...data.legajos, l];
     setData({ ...data, legajos: nuevos });
@@ -6045,6 +6493,83 @@ function App() {
     }
   };
 
+  // Arregla los legajos que quedaron con el nombre completo repetido adentro del
+  // apellido: los separa en apellido y nombre y lo deja asentado en el historial
+  const separarNombres = async () => {
+    if (!esAdmin(user)) {
+      toast("Sólo las administradoras pueden hacer este arreglo", "err");
+      return;
+    }
+    let tocados = 0;
+    const nuevos = [];
+    for (const l of data.legajos) {
+      if (!nombreRepetido(l)) {
+        nuevos.push(l);
+        continue;
+      }
+      const r = arreglarNombre(l);
+      const act = {
+        ...l, apellido: r.apellido || "", nombre: r.nombre || "",
+        historial: [...(l.historial || []), {
+          id: uid(), usuario: comoLlamar(user), fecha: selloFecha(),
+          accion: "Apellido y nombre separados",
+          cambios: [`Apellido: "${l.apellido || ""}" → "${r.apellido || ""}"`, `Nombre: "${l.nombre || ""}" → "${r.nombre || ""}"`]
+        }].slice(-200)
+      };
+      try {
+        await DB.guardarLegajo(act);
+        nuevos.push(act);
+        tocados++;
+      } catch (e) {
+        nuevos.push(l);
+      }
+    }
+    setData({ ...data, legajos: nuevos });
+    toast(tocados ? `${tocados} legajo${tocados === 1 ? "" : "s"} corregido${tocados === 1 ? "" : "s"}` : "No había nombres repetidos", "ok");
+    if (tocados) {
+      const av = await publicarAviso(user, `${comoLlamar(user)} separó apellido y nombre en ${tocados} legajo${tocados === 1 ? "" : "s"}`);
+      if (av) setAvisos(av);
+    }
+  };
+
+  // Fecha de alta de toda la convocatoria. Sin pisar, sólo completa los vacíos.
+  const ponerFechaAlta = async pisarTodo => {
+    if (!esAdmin(user)) {
+      toast("Sólo las administradoras pueden cargar la fecha de alta en masa", "err");
+      return;
+    }
+    let tocados = 0;
+    const nuevos = [];
+    for (const l of data.legajos) {
+      const tiene = (l.fechaAlta || "").trim();
+      if ((tiene && !pisarTodo) || tiene === FECHA_ALTA_INICIAL) {
+        nuevos.push(l);
+        continue;
+      }
+      const act = {
+        ...l, fechaAlta: FECHA_ALTA_INICIAL,
+        historial: [...(l.historial || []), {
+          id: uid(), usuario: comoLlamar(user), fecha: selloFecha(),
+          accion: "Fecha de alta cargada en masa",
+          cambios: [`Fecha de alta: "${tiene || "—"}" → "${FECHA_ALTA_INICIAL}"`]
+        }].slice(-200)
+      };
+      try {
+        await DB.guardarLegajo(act);
+        nuevos.push(act);
+        tocados++;
+      } catch (e) {
+        nuevos.push(l);
+      }
+    }
+    setData({ ...data, legajos: nuevos });
+    toast(tocados ? `Fecha de alta ${fmtFecha(FECHA_ALTA_INICIAL)} en ${tocados} legajo${tocados === 1 ? "" : "s"}` : "Ya la tenían todos", "ok");
+    if (tocados) {
+      const av = await publicarAviso(user, `${comoLlamar(user)} cargó la fecha de alta ${fmtFecha(FECHA_ALTA_INICIAL)} en ${tocados} legajo${tocados === 1 ? "" : "s"}`);
+      if (av) setAvisos(av);
+    }
+  };
+
   const pedirBorrar = l => setConfirmar({
     titulo: "Eliminar legajo",
     texto: `Vas a eliminar definitivamente el legajo de ${l.apellido || "este aspirante"}. Si la persona dejó el curso, conviene marcarla como Baja, Desistió o Desafectado: así queda en el historial.`,
@@ -6068,7 +6593,7 @@ function App() {
     textoOk: "Reincorporar",
     onOk: async () => {
       setConfirmar(null);
-      await guardarLegajo({ ...l, estado: "Activo", motivoEstado: "", fechaEstado: "", fechaBaja: "" });
+      await guardarLegajo({ ...l, estado: "Activo", motivoEstado: "", fechaEstado: "", fechaBaja: "", fechaDesistio: "", fechaDesafectado: "" });
       setSel(null);
       toast("Aspirante reincorporado", "ok");
     }
@@ -6088,7 +6613,7 @@ function App() {
       : h(I.user, { style: { width: 24, height: 24, color: "var(--txt-dim)", margin: "15px auto", display: "block" } })),
     h("div", { style: { flex: 1, minWidth: 0 } },
       h("div", { style: { fontWeight: 700, fontSize: 15, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" } },
-        (l.apellido || "—").toUpperCase(), l.nombre ? ", " + l.nombre : ""),
+        nombreFormal(l)),
       h("div", { style: { fontSize: 12, color: "var(--txt-dim)" } },
         "DNI " + (l.dni || "—") + " · " + (l.ciudad || "Sin ciudad") + (l.provincia ? ", " + l.provincia : "")),
       enBajas && l.motivoEstado ? h("div", { style: { fontSize: 12, color: "var(--coral)", marginTop: 3 } }, "Motivo: " + l.motivoEstado) : null,
@@ -6237,20 +6762,28 @@ function App() {
             : "Este legajo todavía no tiene sección asignada; una administradora tiene que asignarla."))) : null,
     h(Detalle, {
       legajo: sel, rol: user.rol, puede: puedeEditarLegajo(user, sel), toast,
+      autor: comoLlamar(user),
       onBack: () => setSel(null),
       onSave: guardarLegajo
-    })) : vista === "usuarios" && user.rol === "admin" ? h(UsuariosTab, {
+    })) : vista === "inicio" ? h(Inicio, {
+    legajos: visibles, onAbrir: l => setSel(l), user,
+    onIrA: v => { setSel(null); setVista(v); }
+  }) : vista === "usuarios" && user.rol === "admin" ? h(UsuariosTab, {
     data, setData, toast
   }) : vista === "admin" && user.rol === "admin" ? h(Administracion, {
     legajos: data.legajos, usuarios: data.usuarios, accesos, recorrido, avisos,
     onAbrir: l => setSel(l), onCompletar: completarDesdeListado, avisar: toast,
     onImportarPlanilla: importarPlanilla,
     acargo, onGuardarACargo: guardarACargo, puedeEditarACargo: esAdmin(user),
-    onGuardarUsuarios: guardarUsuarios
+    onGuardarUsuarios: guardarUsuarios,
+    onSepararNombres: separarNombres, onFechaAlta: ponerFechaAlta
+  }) : vista === "madre" ? h(ListadoMadre, {
+    legajos: visibles, onAbrir: l => setSel(l)
   }) : VISTAS_LISTADO[vista] ? h(Listados, {
     vista, legajos: visibles, onAbrir: l => setSel(l)
   }) : vista === "alojamiento" ? h(AlojamientoVista, {
-    legajos: visibles, onAbrir: l => setSel(l), usuarios: data.usuarios, acargo
+    legajos: visibles, onAbrir: l => setSel(l), usuarios: data.usuarios, acargo,
+    user, onGuardar: guardarLegajo
   }) : vista === "estadisticas" ? h(Estadisticas, {
     legajos: visibles, usuarios: data.usuarios, toast,
     onCompletar: esAdmin(user) && ASPIRANTES_SEMILLA.length ? completarDesdeListado : null
