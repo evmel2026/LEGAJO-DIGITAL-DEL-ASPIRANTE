@@ -99,8 +99,18 @@ h1,h2,h3,h4,.font-display{font-family:'Oswald',sans-serif;letter-spacing:.5px}
 .pop-anchor{position:relative}
 .pop{position:absolute;top:46px;right:0;width:280px;max-height:360px;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;background:var(--panel);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow);z-index:200;padding:8px}
 .pop b,.pop div{overflow-wrap:anywhere;word-break:break-word}
-.navscroll{display:flex;gap:6px;margin-top:10px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.navscroll{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;align-items:center;padding-bottom:2px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
 .navscroll::-webkit-scrollbar{display:none}
+.tabgrupo{position:relative}
+.tabpill.grupo{display:inline-flex;align-items:center;gap:7px}
+.tabpill.grupo .flecha{font-size:9px;opacity:.75;transition:transform .18s}
+.tabpill.grupo.abierto .flecha{transform:rotate(180deg)}
+.popnav{position:absolute;top:calc(100% + 7px);left:0;min-width:236px;max-height:min(70vh,420px);overflow-y:auto;overscroll-behavior:contain;background:var(--panel);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow);z-index:210;padding:8px;display:flex;flex-direction:column;gap:3px}
+.popnav>button{text-align:left;background:transparent;border:none;color:var(--txt);font-family:'Barlow';font-weight:600;font-size:13.5px;padding:10px 12px;border-radius:10px;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:9px}
+.popnav>button:hover{background:var(--panel2)}
+.popnav>button.on{background:var(--panel2);color:var(--acc2)}
+.popnav .ico{width:20px;text-align:center;font-size:14px;flex:none}
+.popnav .tit-grupo{font-family:'Oswald';font-size:10.5px;letter-spacing:2px;color:var(--txt-dim);padding:4px 12px 6px}
 /* Escudo animado en el login */
 @keyframes escudoIn{0%{opacity:0;transform:scale(.6)}100%{opacity:1;transform:scale(1)}}
 @keyframes giro{0%{transform:rotateY(16deg)}50%{transform:rotateY(-16deg)}100%{transform:rotateY(16deg)}}
@@ -149,7 +159,7 @@ body{background-image:radial-gradient(58vw 44vw at 6% -6%, rgba(var(--acc-rgb),.
 .topbar{background:var(--bg2);border-bottom:1px solid var(--border);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
 [data-theme="light"] .topbar{background:rgba(255,255,255,.72);border-bottom:1px solid rgba(255,255,255,.9);box-shadow:0 1px 0 rgba(var(--acc-rgb),.35),0 10px 30px rgba(35,30,70,.07)}
 [data-theme="light"] .card{background:rgba(255,255,255,.82);border-color:rgba(255,255,255,.95);box-shadow:0 14px 32px rgba(35,30,70,.10),0 1px 0 rgba(var(--acc-rgb),.18) inset;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
-[data-theme="light"] .pop{background:rgba(255,255,255,.94);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
+[data-theme="light"] .pop,[data-theme="light"] .popnav{background:rgba(255,255,255,.94);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
 [data-theme="light"] .inp{background:rgba(255,255,255,.9);border-color:#dfe3ee;box-shadow:inset 0 1px 2px rgba(0,0,0,.04)}
 [data-theme="light"] .tabpill,[data-theme="light"] .pill-sec,[data-theme="light"] .iconbtn{background:rgba(255,255,255,.78);border-color:rgba(30,30,70,.10)}
 [data-theme="light"] ::-webkit-scrollbar-track{background:#eceff8}
@@ -252,8 +262,9 @@ body{background-image:radial-gradient(58vw 44vw at 6% -6%, rgba(var(--acc-rgb),.
      encabezado, así nunca se salen de la pantalla en el celular. */
   .pop-anchor{position:static}
   .pop{top:calc(100% + 6px);left:12px;right:12px;width:auto!important;max-width:none;max-height:min(68vh,440px)!important;border-radius:16px;padding:10px}
-  .tabpill{font-size:12.5px;padding:8px 14px}
+  .tabpill{font-size:12.5px;padding:8px 13px}
   .subsec{font-size:14px}
+  .popnav{left:0;right:auto;min-width:min(78vw,260px)}
 }
 @media (max-width:430px){
   .top-escudo{width:26px!important}
@@ -289,7 +300,7 @@ const h = React.createElement;
 const APP_NOMBRE = "LEGAJO DIGITAL DEL ASPIRANTE";
 const APP_CORTO = "Legajo Digital";
 const APP_SUB = "del Aspirante";
-const APP_VER = "3.6";
+const APP_VER = "3.8";
 
 // ══════════════════════════════════════════════════════════════
 //  CONEXIÓN A SUPABASE
@@ -4499,6 +4510,7 @@ function Shell(props) {
   const { user, onLogout, children, toast, vista, setVista, rol, notifs, tema, onTema, onLimpiarNotifs, onLeerNotifs } = props;
   const [openN, setOpenN] = useState(false);
   const [openC, setOpenC] = useState(false);
+  const [openL, setOpenL] = useState(false);
   const [verHistorial, setVerHistorial] = useState(false);
   const [, setReloj] = useState(0);
   useEffect(() => {
@@ -4507,10 +4519,23 @@ function Shell(props) {
     return () => clearInterval(t);
   }, []);
   const noLeidas = (notifs || []).filter(n => !n.leida && !n.archivada).length;
-  const nav = [["legajos", "Legajos"], ["l1", "1er Listado"], ["l2", "2do Listado"], ["actualizado", "Listado Actualizado"], ["femeninos", "Femeninos"], ["masculinos", "Masculinos"], ["alojamiento", "Alojamiento DCFyCCCO"], ["bajas", "Bajas, Desistieron y Desafectados"], ["estadisticas", "Estadísticas"]].concat(rol === "admin" ? [["usuarios", "Usuarios"], ["admin", "Administración"]] : []);
+  // La barra se arma en dos niveles: las pesta\u00f1as principales quedan siempre a la
+  // vista y los listados de la planilla se agrupan en un desplegable.
+  const GRUPO_ASPIRANTES = "Aspirantes 2da Convocatoria";
+  const LISTADOS_MENU = [
+    ["l1", "\ud83d\udcc4", "1er Listado General"],
+    ["l2", "\ud83d\udcc4", "2do Listado General"],
+    ["actualizado", "\u2705", "Listado Actualizado"],
+    ["femeninos", "\u2640\ufe0f", "Femeninos"],
+    ["masculinos", "\u2642\ufe0f", "Masculinos"],
+    ["alojamiento", "\ud83c\udfe0", "Alojamiento DCFyCCCO"]
+  ];
+  const enListados = LISTADOS_MENU.some(([k]) => k === vista);
+  const nav = [["legajos", "Legajos"], ["bajas", "Bajas, Desistieron y Desafectados"], ["estadisticas", "Estad\u00edsticas"]].concat(rol === "admin" ? [["usuarios", "Usuarios"], ["admin", "Administraci\u00f3n"]] : []);
   const cerrarTodo = () => {
     setOpenN(false);
     setOpenC(false);
+    setOpenL(false);
   };
   return h("div", { style: { minHeight: "100vh", position: "relative" } },
     h("div", { className: "bg-anim", style: { opacity: .35 } }),
@@ -4600,10 +4625,32 @@ function Shell(props) {
           h("div", { className: "top-user-rol", style: { fontSize: 10, color: "var(--acc2)" } }, ROLES[rol])),
         h("button", { className: "iconbtn", onClick: onLogout, title: "Salir" }, h(I.logout, { style: { width: 16, height: 16 } })))),
       h("div", { className: "navscroll" },
-        nav.map(([k, t]) => h("button", {
+        h("button", {
+          className: "tabpill " + (vista === "legajos" ? "active" : ""),
+          onClick: () => { cerrarTodo(); setVista("legajos"); }
+        }, "Legajos"),
+        h("div", { className: "tabgrupo" },
+          h("button", {
+            className: "tabpill grupo" + (enListados ? " active" : "") + (openL ? " abierto" : ""),
+            onClick: e => {
+              e.stopPropagation();
+              setOpenN(false);
+              setOpenC(false);
+              setOpenL(v => !v);
+            }
+          }, enListados ? (LISTADOS_MENU.find(([k]) => k === vista) || [])[2] : GRUPO_ASPIRANTES,
+            h("span", { className: "flecha" }, "\u25bc")),
+          openL ? h("div", { className: "popnav", onClick: e => e.stopPropagation() },
+            h("div", { className: "tit-grupo" }, GRUPO_ASPIRANTES.toUpperCase()),
+            LISTADOS_MENU.map(([k, ico, t]) => h("button", {
+              key: k,
+              className: vista === k ? "on" : "",
+              onClick: () => { setOpenL(false); setVista(k); }
+            }, h("span", { className: "ico" }, ico), t))) : null),
+        nav.slice(1).map(([k, t]) => h("button", {
           key: k,
           className: "tabpill " + (vista === k ? "active" : ""),
-          onClick: () => setVista(k)
+          onClick: () => { cerrarTodo(); setVista(k); }
         }, t)))),
     h("div", { onClick: cerrarTodo },
       h("div", { style: { maxWidth: 1100, margin: "18px auto 0", padding: "0 16px" } },
