@@ -300,7 +300,7 @@ const h = React.createElement;
 const APP_NOMBRE = "LEGAJO DIGITAL DEL ASPIRANTE";
 const APP_CORTO = "Legajo Digital";
 const APP_SUB = "del Aspirante";
-const APP_VER = "3.8";
+const APP_VER = "4.1";
 
 // ══════════════════════════════════════════════════════════════
 //  CONEXIÓN A SUPABASE
@@ -369,6 +369,34 @@ const ALOJAMIENTOS = ["Módulo 2", "Módulo 3", "Módulo 4", "Módulo 5", "Gamel
 const PROVINCIAS_AR = ["Neuquén", "Río Negro", "Buenos Aires", "CABA", "Catamarca", "Chaco", "Chubut", "Córdoba", "Corrientes", "Entre Ríos", "Formosa", "Jujuy", "La Pampa", "La Rioja", "Mendoza", "Misiones", "Salta", "San Juan", "San Luis", "Santa Cruz", "Santa Fe", "Santiago del Estero", "Tierra del Fuego", "Tucumán"];
 
 const FRASE_INGRESO = "Disciplina, compromiso y evolución. Todo comienza en este legajo digital";
+
+// ══════════════════════════════════════════════════════════════
+//  PERSONAL DE INSTRUCTORES — 2ª CONVOCATORIA 2026
+//  Sale de las dos planillas oficiales: instructores a cargo de
+//  sección y de gamela y módulos. Acá NO hay datos personales:
+//  sólo grado, apellido y qué tiene a cargo cada uno.
+// ══════════════════════════════════════════════════════════════
+const PERSONAL_2DA = [
+  { grado: "Of. Insp.", apellido: "Calderón", nombre: "Calderón Nahuel", usuario: "calderon", rol: "instructor", secciones: ["Sección 1"], modulos: ["Módulo 2"] },
+  { grado: "Sgto. 1°", apellido: "Oses", nombre: "Oses Noelia", usuario: "oses", rol: "instructor", secciones: ["Sección 1"], modulos: ["Gamela"] },
+  { grado: "Of. Insp.", apellido: "Euliarte", nombre: "Euliarte Daniela", usuario: "euliarte", rol: "instructor", secciones: ["Sección 2"], modulos: ["Gamela"] },
+  { grado: "Sgto. Ayte.", apellido: "Seguel", nombre: "Seguel David", usuario: "seguel", rol: "instructor", secciones: ["Sección 2"], modulos: ["Módulo 4", "Módulo 5"] },
+  { grado: "Of. Insp.", apellido: "Castillo", nombre: "Castillo Micaela", usuario: "castillo", rol: "instructor", secciones: ["Sección 3"], modulos: ["Gamela"] },
+  { grado: "Sgto. 1°", apellido: "Ramírez", nombre: "Ramírez Juan", usuario: "ramirez", rol: "instructor", secciones: ["Sección 3"], modulos: ["Módulo 4", "Módulo 5"] },
+  { grado: "Of. Insp.", apellido: "Yáñez", nombre: "Yáñez Juan", usuario: "yanez", rol: "instructor", secciones: ["Sección 4"], modulos: ["Módulo 3"] },
+  { grado: "Sgto.", apellido: "Sanhueza", nombre: "Sanhueza Martín", usuario: "sanhueza", rol: "instructor", secciones: ["Sección 4"], modulos: ["Módulo 2"] },
+  { grado: "Sgto.", apellido: "López", nombre: "López Mariela", usuario: "lopez", rol: "instructor", secciones: ["Sección 4"], modulos: ["Gamela"] },
+  { grado: "Of. Subinsp.", apellido: "Romero", nombre: "Romero Yoseli", usuario: "romero", rol: "instructor", secciones: ["Sección 5"], modulos: ["Gamela"] },
+  { grado: "Of. Subinsp.", apellido: "Quevedo", nombre: "Quevedo Pablo", usuario: "quevedo", rol: "instructor", secciones: ["Sección 5"], modulos: ["Módulo 4", "Módulo 5"] },
+  { grado: "Sgto.", apellido: "Riquelme", nombre: "Riquelme Walter", usuario: "riquelme", rol: "instructor", secciones: ["Sección 5"], modulos: ["Módulo 3"] },
+  { grado: "Cabo 1°", apellido: "Vázquez", nombre: "Vázquez Mauricio", usuario: "vazquez", rol: "instructor", secciones: [], modulos: [] },
+  { grado: "Of. Ppal.", apellido: "Cumillán", nombre: "Cumillán Ariel", usuario: "cumillan", rol: "supervisor", secciones: [], modulos: [] },
+  { grado: "Of. Ppal.", apellido: "Catricura", nombre: "Catricura Juana", usuario: "catricura", rol: "supervisor", secciones: [], modulos: [] }
+];
+const apellidoDeUsuario = u => norm((u.nombre || "").trim().split(/\s+/)[0] || "");
+const buscarEnUsuarios = (usuarios, ficha) =>
+  (usuarios || []).find(u => norm(u.usuario) === norm(ficha.usuario)) ||
+  (usuarios || []).find(u => apellidoDeUsuario(u) === norm(ficha.apellido));
 // ====== FRASES MOTIVADORAS DIARIAS (rotan por día y por usuario) ======
 const FRASES = ["La excelencia comienza con la formación.", "El esfuerzo de hoy es el orgullo de mañana.", "Cada legajo es una historia que ustedes ayudan a construir.", "La disciplina es el puente entre las metas y los logros.", "Servir con vocación es servir con el corazón.", "Grandes responsabilidades forjan grandes personas.", "El orden y la constancia hacen la diferencia.", "Formar agentes es formar el futuro de la seguridad.", "La dedicación no se ve, pero siempre se nota.", "Detrás de cada dato hay una vocación de servicio.", "El trabajo bien hecho habla por sí solo.", "Hoy es un buen día para dejar huella.", "La paciencia y el compromiso construyen instituciones sólidas.", "Quien se forma con honor, sirve con honor.", "El profesionalismo se demuestra en los detalles.", "Lo que se hace con cuidado, dura.", "Ordenar hoy es ganar tiempo mañana.", "Nadie recuerda los días fáciles, sí a quienes estuvieron.", "La constancia vence al talento cuando el talento no es constante.", "Cada ficha completa es una decisión mejor tomada.", "Trabajar con criterio también es formar.", "La calma es una herramienta de trabajo.", "Un buen registro protege a las personas.", "La prolijidad es una forma de respeto.", "El que ordena la información, ordena el futuro.", "Hacer las cosas bien nunca es tiempo perdido.", "Las instituciones se sostienen con gente que cumple.", "La memoria de una escuela son sus registros.", "Enseñar también es acompañar.", "Un paso por día igual llega lejos.", "La claridad de hoy evita el problema de mañana.", "Los detalles distinguen lo bueno de lo excelente.", "Confiar en el propio criterio también se entrena.", "Ser justo cuesta más y vale más.", "La responsabilidad no descansa, pero tampoco agota si se comparte.", "Cada aspirante empieza con una hoja en blanco.", "El respeto se enseña con el ejemplo.", "Sostener el estándar es parte del trabajo.", "El desorden se combate una fila a la vez.", "Lo que hoy parece rutina, mañana es historia institucional."];
 function hashTxt(t) {
@@ -990,10 +1018,15 @@ const publicarAviso = (u, msg) => apilar("avisos", { usuario: u.usuario, nombre:
 // Administradoras: ven, editan y borran todo.
 // Instructores: ven todo, pero sólo cargan y editan legajos de las secciones a su cargo. Nadie más borra.
 const esAdmin = u => !!u && u.rol === "admin";
+// Autorización a cargar: una administradora se la puede quitar a cualquier
+// instructor desde Usuarios. Sin ella el instructor entra, ve y descarga todo,
+// pero no carga ni edita ningún legajo.
+const puedeCargarDatos = u => !!u && (u.rol === "admin" || (u.rol === "instructor" && u.puedeCargar !== false));
 function puedeEditarLegajo(u, l) {
   if (esAdmin(u)) return true;
   if (!u || !l) return false;
   if (u.rol === "supervisor") return false; // sólo consulta y descarga
+  if (u.puedeCargar === false) return false; // autorización dada de baja
   const mias = u.secciones || [];
   if (!mias.length) return false;
   if (!l.seccion) return false;
@@ -3279,6 +3312,63 @@ function tituloHoja(wb, ws, nombre) {
   XLSX.utils.book_append_sheet(wb, ws, nombre.slice(0, 31));
 }
 
+// ══════════════════════════════════════════════════════════════
+//  PDF GENÉRICO DE PLANILLAS — mismo formato y colores de la app
+//  hojas = [[títuloDeLaTabla, columnas, filas], ...]
+// ══════════════════════════════════════════════════════════════
+function exportarPDFHojas(nombreArchivo, subtitulo, hojas, apaisado) {
+  const { jsPDF } = window.jspdf;
+  const d = new jsPDF(apaisado ? "l" : "p");
+  const ancho = apaisado ? 297 : 210;
+  const alto = apaisado ? 210 : 297;
+  const G = rgbApp("--acc", "8FD400");
+  const CORAL = rgbApp("--coral", "FF6B35");
+  d.setFillColor(12, 18, 7);
+  d.rect(0, 0, ancho, 32, "F");
+  try { d.addImage(ESCUDO, "PNG", ancho - 32, 3, 26, 26); } catch (e) {}
+  d.setTextColor(...G);
+  d.setFont("helvetica", "bold");
+  d.setFontSize(18);
+  d.text("LEGAJO DIGITAL", 14, 15);
+  d.setFontSize(9);
+  d.setTextColor(180, 180, 180);
+  d.text(("DEL ASPIRANTE · " + (subtitulo || "")).toUpperCase(), 14, 22);
+  d.text(`DCFyCCCO · Secretaría Académica · ${fmtFecha(hoy())}`, 14, 27);
+  let y = 40;
+  (hojas || []).forEach(([titulo, cols, filas]) => {
+    if (y > alto - 55) { d.addPage(); y = 20; }
+    d.setFont("helvetica", "bold");
+    d.setFontSize(11);
+    d.setTextColor(72, 105, 20);
+    d.text(String(titulo || ""), 14, y);
+    const cuerpo = (filas && filas.length)
+      ? filas.map(f => f.map(c => c === undefined || c === null ? "" : String(c)))
+      : [cols.map((c, i) => i === 0 ? "Sin registros" : "")];
+    d.autoTable({
+      startY: y + 2.5,
+      theme: "grid",
+      head: [cols],
+      body: cuerpo,
+      headStyles: { fillColor: G, textColor: [22, 36, 10], fontStyle: "bold" },
+      alternateRowStyles: { fillColor: [245, 249, 238] },
+      styles: { fontSize: 8, cellPadding: 1.9, lineColor: [220, 231, 203], overflow: "linebreak" },
+      margin: { left: 14, right: 14 }
+    });
+    y = d.lastAutoTable.finalY + 11;
+  });
+  const tot = d.internal.getNumberOfPages();
+  for (let i = 1; i <= tot; i++) {
+    d.setPage(i);
+    d.setFontSize(8);
+    d.setTextColor(150, 150, 150);
+    d.setDrawColor(...CORAL);
+    d.setLineWidth(0.8);
+    d.line(14, alto - 12, ancho - 14, alto - 12);
+    d.text(`Legajo Digital del Aspirante · DCFyCCCO · página ${i} de ${tot}`, ancho / 2, alto - 7, { align: "center" });
+  }
+  d.save(`${nombreArchivo}_${hoy()}.pdf`);
+}
+
 // ====== EXPORTAR EXCEL ======
 function exportarExcel(legajos) {
   const cols = ["Listado", "Sección", "Estado", "Motivo estado", "Fecha alta", "Fecha baja", "Apellido", "Nombre", "Sexo", "Asistencia", "Certificado médico", "Enfermedad a informar", "Medicación", "DNI", "CUIL", "Legajo N°", "Ciudad", "Provincia", "Fecha Nac.", "Edad", "Grupo Sang.", "Domicilio real", "Localidad", "Teléfono", "Email", "Obra social", "Estado civil", "Hijos", "Estudios", "Empleos", "Carnet", "Recargos", "Amonestaciones", "Sanciones", "Expedientes", "Preocupacional", "Alojamiento", "Habitación"];
@@ -3750,6 +3840,39 @@ function conteoPor(legajos, campo, def) {
   });
   return Object.entries(o).sort((x, y) => y[1] - x[1]);
 }
+// ====== DETALLE FINO: edad, alojamiento y localidad ======
+const RANGOS_EDAD = ["18 a 20", "21 a 25", "26 a 30", "31 a 35", "36 o más", "Sin cargar"];
+function rangoEdad(e) {
+  const n = parseInt(e, 10);
+  if (!n) return "Sin cargar";
+  if (n <= 20) return "18 a 20";
+  if (n <= 25) return "21 a 25";
+  if (n <= 30) return "26 a 30";
+  if (n <= 35) return "31 a 35";
+  return "36 o más";
+}
+function conteoEdades(legajos) {
+  return RANGOS_EDAD.map(r => [r, legajos.filter(l => rangoEdad(l.edad) === r).length]);
+}
+function conteoAlojamiento(legajos) {
+  return [...ALOJAMIENTOS, "Sin asignar"].map(m => [m, legajos.filter(l => ((l.alojamiento || {}).modulo || "Sin asignar") === m).length]);
+}
+function conteoListado(legajos) {
+  return [...LISTADOS, "Sin listado"].map(x => [x, legajos.filter(l => (l.listado || "Sin listado") === x).length]);
+}
+// Provincia + localidad, una fila por localidad: acá no se resume nada
+function detalleProvinciaLocalidad(legajos) {
+  const o = {};
+  legajos.forEach(l => {
+    const k = (l.provincia || "Sin especificar") + "\u0001" + (l.ciudad || l.localidad || "Sin especificar");
+    o[k] = (o[k] || 0) + 1;
+  });
+  const tot = Math.max(1, legajos.length);
+  return Object.entries(o).map(([k, n]) => {
+    const [prov, ciu] = k.split("\u0001");
+    return [prov, ciu, n, Math.round(n / tot * 100) + "%"];
+  }).sort((a, b) => a[0].localeCompare(b[0], "es") || b[2] - a[2]);
+}
 function exportarEstadisticasExcel(legajos) {
   const wb = XLSX.utils.book_new();
   tituloHoja(wb, hojaEstilizada(["Indicador", "Total (incluye bajas)", "Sólo activos"], filasResumen(legajos)), "Resumen");
@@ -3758,6 +3881,13 @@ function exportarEstadisticasExcel(legajos) {
   tituloHoja(wb, hojaEstilizada(["Listado", "Cantidad"], conteoPor(legajos, "listado", "1er listado")), "Por listado");
   tituloHoja(wb, hojaEstilizada(["Provincia", "Cantidad"], conteoPor(legajos, "provincia", "Sin especificar")), "Por provincia");
   tituloHoja(wb, hojaEstilizada(["Ciudad", "Cantidad"], conteoPor(legajos, "ciudad", "Sin especificar")), "Por ciudad");
+  tituloHoja(wb, hojaEstilizada(["Provincia", "Localidad", "Aspirantes", "% del total"], detalleProvinciaLocalidad(legajos)), "Provincia y localidad");
+  tituloHoja(wb, hojaEstilizada(["Alojamiento", "Cantidad"], conteoAlojamiento(legajos)), "Por alojamiento");
+  tituloHoja(wb, hojaEstilizada(["Edad", "Cantidad"], conteoEdades(legajos)), "Por edad");
+  tituloHoja(wb, hojaEstilizada(["Sección", "Femeninos", "Masculinos", "Sin sexo", "Total"], [...SECCIONES, "Sin asignar"].map(sec => {
+    const g = legajos.filter(l => (l.seccion || "Sin asignar") === sec);
+    return [sec, g.filter(l => l.sexo === "Femenino").length, g.filter(l => l.sexo === "Masculino").length, g.filter(l => !l.sexo).length, g.length];
+  })), "Sección y sexo");
   tituloHoja(wb, hojaEstilizada(["Apellido", "Nombre", "DNI", "Sexo", "Sección", "Estado", "Asistencia", "Certificado médico", "Listado", "Ciudad", "Provincia"], legajos.map(l => [l.apellido || "", l.nombre || "", l.dni || "", l.sexo || "", l.seccion || "Sin asignar", l.estado || "Activo", l.asistencia || "", (l.certMedico || {}).tiene || "", l.listado || "", l.ciudad || "", l.provincia || ""])), "Nómina");
   XLSX.writeFile(wb, `LegajoDigital_estadisticas_${hoy()}.xlsx`);
 }
@@ -3806,7 +3936,19 @@ function exportarEstadisticasPDF(legajos) {
     d.addPage();
     y = 20;
   }
-  tabla("Ciudad / Localidad", ["Ciudad", "Cantidad"], conteoPor(legajos, "ciudad", "Sin especificar"), y);
+  y = tabla("Ciudad / Localidad", ["Ciudad", "Cantidad"], conteoPor(legajos, "ciudad", "Sin especificar"), y);
+  d.addPage();
+  y = 20;
+  y = tabla("Provincia", ["Provincia", "Localidad", "Aspirantes", "%"], detalleProvinciaLocalidad(legajos), y);
+  if (y > 210) { d.addPage(); y = 20; }
+  y = tabla("Alojamiento", ["Alojamiento", "Cantidad"], conteoAlojamiento(legajos), y);
+  if (y > 210) { d.addPage(); y = 20; }
+  y = tabla("Edad", ["Edad", "Cantidad"], conteoEdades(legajos), y);
+  if (y > 200) { d.addPage(); y = 20; }
+  tabla("Sección", ["Sección", "Femeninos", "Masculinos", "Sin sexo", "Total"], [...SECCIONES, "Sin asignar"].map(sec => {
+    const g = legajos.filter(l => (l.seccion || "Sin asignar") === sec);
+    return [sec, g.filter(l => l.sexo === "Femenino").length, g.filter(l => l.sexo === "Masculino").length, g.filter(l => !l.sexo).length, g.length];
+  }), y);
   const tot = d.internal.getNumberOfPages();
   for (let i = 1; i <= tot; i++) {
     d.setPage(i);
@@ -3882,6 +4024,14 @@ function Estadisticas({ legajos, usuarios, toast, onCompletar }) {
   });
   const porSeccion = [...SECCIONES, "Sin asignar"].map(sec => [sec, base.filter(l => (l.seccion || "Sin asignar") === sec).length]);
   const maxSec = Math.max(1, ...porSeccion.map(x => x[1]));
+  const porListado = conteoListado(base);
+  const porAloj = conteoAlojamiento(base);
+  const porEdad = conteoEdades(base);
+  const detalleLoc = detalleProvinciaLocalidad(base);
+  const secYsexo = [...SECCIONES, "Sin asignar"].map(sec => {
+    const g = base.filter(l => (l.seccion || "Sin asignar") === sec);
+    return [sec, g.filter(l => l.sexo === "Femenino").length, g.filter(l => l.sexo === "Masculino").length, g.filter(l => !l.sexo).length, g.length];
+  });
   const bajar = (fn, que) => {
     try {
       fn(legajos);
@@ -3970,20 +4120,48 @@ function Estadisticas({ legajos, usuarios, toast, onCompletar }) {
           h("div", { style: { height: 8, background: "var(--bg2)", borderRadius: 5, overflow: "hidden", marginBottom: 10 } },
             h("div", { style: { height: "100%", width: info.total / maxProv * 100 + "%", background: "linear-gradient(90deg,var(--acc),var(--coral))", borderRadius: 5 } })),
           h("div", { style: { display: "flex", flexWrap: "wrap", gap: 6 } },
-            Object.entries(info.ciudades).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([ciu, n]) => h("span", {
+            Object.entries(info.ciudades).sort((a, b) => b[1] - a[1]).map(([ciu, n]) => h("span", {
               key: ciu, className: "tag",
               style: { background: "var(--bg2)", color: "var(--txt-dim)", fontSize: 11, fontWeight: 500 }
-            }, ciu, " ", h("b", { style: { color: "var(--acc2)" } }, n))),
-            Object.keys(info.ciudades).length > 8 ? h("span", { style: { fontSize: 11, color: "var(--txt-dim)", alignSelf: "center" } }, `+${Object.keys(info.ciudades).length - 8} más`) : null))))));
+            }, ciu, " ", h("b", { style: { color: "var(--acc2)" } }, n)))))))),
+    h("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(280px,100%),1fr))", gap: 16, marginTop: 16 } },
+      h("div", { className: "card", style: caja },
+        h("h3", { style: { color: "var(--acc2)", fontSize: 17, marginBottom: 14 } }, "Por listado"),
+        porListado.map(([x, n]) => h(BarraDato, { key: x, label: x, valor: n, total: base.length, color: "var(--acc2)" }))),
+      h("div", { className: "card", style: caja },
+        h("h3", { style: { color: "var(--acc2)", fontSize: 17, marginBottom: 4 } }, "Por alojamiento"),
+        h("div", { style: { fontSize: 12, color: "var(--txt-dim)", marginBottom: 12 } }, "Gamela y módulos"),
+        porAloj.map(([x, n]) => h(BarraDato, { key: x, label: x, valor: n, total: base.length, color: x === "Sin asignar" ? "var(--txt-dim)" : "var(--coral)" }))),
+      h("div", { className: "card", style: caja },
+        h("h3", { style: { color: "var(--acc2)", fontSize: 17, marginBottom: 14 } }, "Por edad"),
+        porEdad.map(([x, n]) => h(BarraDato, { key: x, label: x + " años", valor: n, total: base.length, color: x === "Sin cargar" ? "var(--txt-dim)" : "var(--green)" })))),
+    h("div", { className: "card", style: { padding: 20, marginTop: 16 } },
+      h("h3", { style: { color: "var(--acc2)", fontSize: 17, marginBottom: 4 } }, "Cada sección, por sexo"),
+      h("div", { style: { fontSize: 12, color: "var(--txt-dim)", marginBottom: 14 } }, "Con el instructor a cargo de cada una"),
+      h(Tabla, {
+        cols: ["Sección", "Instructor a cargo", "Femeninos", "Masculinos", "Sin sexo", "Total"],
+        filas: secYsexo.map(([sec, f, m, sn, t]) => [sec, sec === "Sin asignar" ? "—" : (nombresACargo(usuarios, sec) || "Sin instructor"), f, m, sn, h("b", { style: { color: "var(--acc2)" } }, t)]),
+        vacio: "Sin datos."
+      })),
+    h("div", { className: "card", style: { padding: 20, marginTop: 16 } },
+      h("h3", { style: { color: "var(--acc2)", fontSize: 17, marginBottom: 4 } }, "Detalle completo por localidad"),
+      h("div", { style: { fontSize: 12, color: "var(--txt-dim)", marginBottom: 14 } },
+        `Todas las localidades, una por una, sin resumir: ${detalleLoc.length} localidad${detalleLoc.length === 1 ? "" : "es"} distintas.`),
+      h(Tabla, {
+        cols: ["Provincia", "Localidad", "Aspirantes", "% del total"],
+        filas: detalleLoc.map(f => [f[0], f[1], h("b", { style: { color: "var(--acc2)" } }, f[2]), f[3]]),
+        vacio: "Sin datos cargados todavía."
+      })));
 }
-function UsuariosTab({
-  data,
-  setData,
-  toast
-}) {
+function UsuariosTab({ data, setData, toast }) {
   const usuarios = data.usuarios || [];
   const [d, setD] = useState(null);
   const [guardando, setGuardando] = useState(false);
+  const [aBorrar, setABorrar] = useState(null);
+  const [verPlantel, setVerPlantel] = useState(false);
+  const [clavePlantel, setClavePlantel] = useState("");
+  const [creandoPlantel, setCreandoPlantel] = useState(false);
+
   const guardar = async () => {
     if (!d.nombre || !d.usuario) {
       toast("Nombre y usuario son obligatorios", "err");
@@ -4003,13 +4181,15 @@ function UsuariosTab({
       toast("Ya existe un usuario con ese nombre de acceso", "err");
       return;
     }
+    const rol = d.rol || "instructor";
     const base = {
       id: d.id || uid(),
       grado: d.grado || "",
       nombre: d.nombre,
       usuario: d.usuario,
-      rol: d.rol || "instructor",
-      secciones: d.secciones || []
+      rol,
+      secciones: rol === "supervisor" ? [] : (d.secciones || []),
+      puedeCargar: rol === "admin" ? true : rol === "supervisor" ? false : d.puedeCargar !== false
     };
     base.hash = d.password ? await hashPass(d.password) : existente ? existente.hash : "";
     if (sb && !existente && d.password) {
@@ -4044,187 +4224,218 @@ function UsuariosTab({
       toast("Error: " + e.message, "err");
     }
   };
-  const borrar = async id => {
-    const nu = usuarios.filter(u => u.id !== id);
-    await DB.guardarUsuarios(nu);
-    setData({
-      ...data,
-      usuarios: nu
-    });
+
+  const borrar = async u => {
+    const nu = usuarios.filter(x => x.id !== u.id);
+    try {
+      await DB.guardarUsuarios(nu);
+      setData({ ...data, usuarios: nu });
+      toast("Usuario eliminado", "ok");
+    } catch (e) {
+      toast("Error: " + e.message, "err");
+    }
   };
-  return /*#__PURE__*/React.createElement("div", {
-    className: "card",
-    style: {
-      padding: 22,
-      maxWidth: 700,
-      margin: "0 auto"
+
+  // Da o quita la autorización de cargar, sin abrir el formulario
+  const cambiarPermiso = async u => {
+    const nu = usuarios.map(x => x.id === u.id ? { ...x, puedeCargar: !(x.puedeCargar !== false) } : x);
+    try {
+      await DB.guardarUsuarios(nu);
+      setData({ ...data, usuarios: nu });
+      toast(u.puedeCargar !== false
+        ? conGrado(u) + " queda sólo con permiso de consultar y descargar"
+        : conGrado(u) + " ya puede cargar y editar los legajos de sus secciones", "ok");
+    } catch (e) {
+      toast("Error: " + e.message, "err");
     }
-  }, /*#__PURE__*/React.createElement("h3", {
-    style: {
-      color: "var(--gold2)",
-      marginBottom: 16
+  };
+
+  // ───────── Plantel de la 2ª convocatoria ─────────
+  const faltantes = PERSONAL_2DA.filter(f => !buscarEnUsuarios(usuarios, f));
+  const crearFaltantes = async () => {
+    if ((clavePlantel || "").length < 6) {
+      toast("La contraseña provisoria necesita al menos 6 caracteres", "err");
+      return;
     }
-  }, "Usuarios del sistema"), /*#__PURE__*/React.createElement("div", {
-    style: { fontSize: 12, color: "var(--txt-dim)", marginBottom: 14, borderLeft: "3px solid var(--coral)", paddingLeft: 10 }
-  }, "Las contraseñas se guardan cifradas (SHA-256 con sal): nadie puede leerlas, ni siquiera desde el código de la app."), usuarios.map(u => /*#__PURE__*/React.createElement("div", {
+    setCreandoPlantel(true);
+    const nu = [...usuarios];
+    let creados = 0;
+    const fallos = [];
+    let previa = null;
+    try { if (sb) previa = (await sb.auth.getSession()).data.session; } catch (e) {}
+    for (const f of faltantes) {
+      let usuario = f.usuario, n = 2;
+      while (nu.some(u => norm(u.usuario) === norm(usuario))) usuario = f.usuario + (n++);
+      if (sb) {
+        try {
+          const { error } = await sb.auth.signUp({ email: correoDe(usuario), password: clavePlantel });
+          if (error && !/already registered/i.test(error.message)) { fallos.push(f.apellido); continue; }
+        } catch (e) { fallos.push(f.apellido); continue; }
+      }
+      nu.push({
+        id: uid(), grado: f.grado, nombre: f.nombre, usuario,
+        rol: f.rol || "instructor",
+        secciones: f.rol === "supervisor" ? [] : (f.secciones || []),
+        puedeCargar: (f.rol || "instructor") === "instructor",
+        hash: await hashPass(clavePlantel)
+      });
+      creados++;
+    }
+    if (sb && previa) {
+      try { await sb.auth.setSession({ access_token: previa.access_token, refresh_token: previa.refresh_token }); } catch (e) {}
+    }
+    try {
+      await DB.guardarUsuarios(nu);
+      setData({ ...data, usuarios: nu });
+      setClavePlantel("");
+      toast(`${creados} usuario${creados === 1 ? "" : "s"} creado${creados === 1 ? "" : "s"}` +
+        (fallos.length ? ` · con error: ${fallos.join(", ")}` : "") +
+        ". Ahora aplicá la planilla en Administración → Personal a cargo.", fallos.length ? "err" : "ok");
+    } catch (e) {
+      toast("Error: " + e.message, "err");
+    }
+    setCreandoPlantel(false);
+  };
+
+  // ───────── Exportar la nómina ─────────
+  const COLS_USR = ["Grado", "Apellido y nombre", "Usuario", "Rol", "Secciones a cargo", "Autorización para cargar"];
+  const filasUsr = () => usuarios.map(u => [
+    u.grado || "", u.nombre || "", u.usuario || "", ROLES[u.rol] || u.rol || "",
+    (u.secciones || []).join(" · ") || "—",
+    u.rol === "admin" ? "Total" : u.rol === "supervisor" ? "No (sólo consulta)" : (u.puedeCargar !== false ? "Sí" : "No (sólo consulta)")
+  ]);
+  const exportarXls = () => exportarHojas("LegajoDigital_Usuarios", [["Usuarios", COLS_USR, filasUsr()]]);
+  const exportarPdf = () => exportarPDFHojas("LegajoDigital_Usuarios", "Usuarios del sistema",
+    [["Usuarios del sistema y permisos", COLS_USR, filasUsr()]]);
+
+  const chip = (txt, color, fondo) => h("span", { className: "tag", style: { background: fondo, color, fontSize: 11 } }, txt);
+
+  const tarjetaUsuario = u => h("div", {
     key: u.id,
     className: "card",
-    style: {
-      padding: "10px 14px",
-      marginBottom: 8,
-      background: "var(--bg2)",
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center"
-    }
-  }, /*#__PURE__*/React.createElement("div", null, u.grado ? /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 11,
-      color: "var(--acc2)",
-      display: "block",
-      textTransform: "uppercase",
-      letterSpacing: .6
-    }
-  }, u.grado) : null, /*#__PURE__*/React.createElement("b", null, u.nombre), " ", /*#__PURE__*/React.createElement("span", {
-    style: {
-      color: "var(--txt-dim)",
-      fontSize: 13
-    }
-  }, "· ", u.usuario, " · ", ROLES[u.rol], (u.secciones || []).length ? " · a cargo de " + u.secciones.join(", ") : "")), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      gap: 6
-    }
-  }, /*#__PURE__*/React.createElement("button", {
-    className: "btn btn-ghost",
-    style: {
-      padding: "4px 8px"
-    },
-    onClick: () => setD({
-      ...u
-    })
-  }, /*#__PURE__*/React.createElement(I.edit, {
-    style: {
-      width: 14,
-      height: 14
-    }
-  })), /*#__PURE__*/React.createElement("button", {
-    className: "btn btn-red",
-    style: {
-      padding: "4px 8px"
-    },
-    onClick: () => borrar(u.id)
-  }, /*#__PURE__*/React.createElement(I.trash, {
-    style: {
-      width: 14,
-      height: 14
-    }
-  }))))), !d && /*#__PURE__*/React.createElement("button", {
-    className: "btn btn-gold",
-    style: {
-      marginTop: 8
-    },
-    onClick: () => setD({
-      grado: "",
-      nombre: "",
-      usuario: "",
-      password: "",
-      rol: "instructor",
-      secciones: []
-    })
-  }, /*#__PURE__*/React.createElement(I.plus, {
-    style: {
-      width: 16,
-      height: 16
-    }
-  }), "Nuevo usuario"), d && /*#__PURE__*/React.createElement("div", {
-    className: "card",
-    style: {
-      padding: 16,
-      background: "var(--panel2)",
-      marginTop: 10
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      gap: 12,
-      flexWrap: "wrap"
-    }
-  }, /*#__PURE__*/React.createElement(Campo, {
-    l: "Grado / jerarquía",
-    val: d.grado || "",
-    set: v => setD({
-      ...d,
-      grado: v
-    }),
-    editable: true,
-    ancho: 220
-  }), /*#__PURE__*/React.createElement(Campo, {
-    l: "Apellido y nombre",
-    val: d.nombre,
-    set: v => setD({
-      ...d,
-      nombre: v
-    }),
-    editable: true
-  }), /*#__PURE__*/React.createElement(Campo, {
-    l: "Usuario",
-    val: d.usuario,
-    set: v => setD({
-      ...d,
-      usuario: v
-    }),
-    editable: true
-  }), /*#__PURE__*/React.createElement(Campo, {
-    l: d.id ? "Nueva contraseña (vacío = sin cambios)" : "Contraseña",
-    val: d.password || "",
-    set: v => setD({
-      ...d,
-      password: v
-    }),
-    editable: true,
-    type: "password"
-  }), /*#__PURE__*/React.createElement(Campo, {
-    l: "Rol",
-    val: d.rol,
-    set: v => setD({
-      ...d,
-      rol: v
-    }),
-    editable: true,
-    opt: ["admin", "instructor", "supervisor"]
-  })), d.rol !== "supervisor" ? h("div", { style: { marginTop: 10 } },
-    h("label", { className: "lbl" }, "Secciones a cargo"),
-    h("div", { style: { display: "flex", gap: 7, flexWrap: "wrap" } },
-      SECCIONES.map(sec => {
-        const puesta = (d.secciones || []).includes(sec);
-        return h("button", {
-          key: sec,
-          className: "pill-sec" + (puesta ? " on" : ""),
-          onClick: () => setD({ ...d, secciones: puesta ? (d.secciones || []).filter(x => x !== sec) : [...(d.secciones || []), sec] })
-        }, puesta ? "✓ " + sec : sec);
+    style: { padding: "10px 14px", marginBottom: 8, background: "var(--bg2)", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }
+  }, h("div", { style: { minWidth: 200, flex: 1 } },
+    u.grado ? h("span", { style: { fontSize: 11, color: "var(--acc2)", display: "block", textTransform: "uppercase", letterSpacing: .6 } }, u.grado) : null,
+    h("b", null, u.nombre), " ",
+    h("span", { style: { color: "var(--txt-dim)", fontSize: 13 } },
+      "· ", u.usuario, " · ", ROLES[u.rol],
+      (u.secciones || []).length ? " · a cargo de " + u.secciones.join(", ") : ""),
+    h("div", { style: { marginTop: 6, display: "flex", gap: 5, flexWrap: "wrap" } },
+      u.rol === "admin"
+        ? chip("Permiso total", "var(--acc2)", "rgba(143,212,0,.15)")
+        : u.rol === "supervisor"
+          ? chip("👁️ Sólo consulta y descarga", "var(--info)", "rgba(var(--info-rgb),.16)")
+          : (u.puedeCargar !== false
+              ? chip("✅ Autorizado a cargar", "var(--green)", "rgba(55,214,122,.15)")
+              : chip("🚫 Sin autorización para cargar", "var(--red)", "rgba(255,90,82,.15)")),
+      (u.secciones || []).length === 0 && u.rol === "instructor" ? chip("Sin sección asignada", "var(--amber)", "rgba(255,176,32,.15)") : null)),
+    h("div", { style: { display: "flex", gap: 6, flexWrap: "wrap" } },
+      u.rol === "instructor" ? h("button", {
+        className: "btn " + (u.puedeCargar !== false ? "btn-ghost" : "btn-lima"),
+        style: { padding: "4px 10px", fontSize: 12.5 },
+        title: u.puedeCargar !== false ? "Quitarle la autorización de cargar" : "Autorizarlo a cargar",
+        onClick: () => cambiarPermiso(u)
+      }, u.puedeCargar !== false ? "Quitar permiso" : "Dar permiso") : null,
+      h("button", { className: "btn btn-ghost", style: { padding: "4px 8px" }, title: "Editar", onClick: () => setD({ ...u }) },
+        h(I.edit, { style: { width: 14, height: 14 } })),
+      h("button", { className: "btn btn-red", style: { padding: "4px 8px" }, title: "Eliminar usuario", onClick: () => setABorrar(u) },
+        h(I.trash, { style: { width: 14, height: 14 } }))));
+
+  const panelPlantel = h("div", { className: "card", style: { padding: 16, marginBottom: 16, background: "var(--panel2)" } },
+    h("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" } },
+      h("div", null,
+        h("b", { style: { fontFamily: "'Oswald'", fontSize: 16, letterSpacing: .4 } }, "Plantel de la 2ª convocatoria"),
+        h("div", { style: { fontSize: 12, color: "var(--txt-dim)", marginTop: 3 } },
+          faltantes.length
+            ? `${faltantes.length} de ${PERSONAL_2DA.length} todavía no tienen usuario en el sistema.`
+            : "Están todos creados.")),
+      h("button", { className: "btn btn-ghost", style: { padding: "5px 12px", fontSize: 13 }, onClick: () => setVerPlantel(!verPlantel) },
+        verPlantel ? "Ocultar" : "Ver el plantel")),
+    verPlantel ? h("div", { style: { marginTop: 14 } },
+      h("div", { style: { display: "grid", gap: 6 } }, PERSONAL_2DA.map(f => {
+        const u = buscarEnUsuarios(usuarios, f);
+        return h("div", {
+          key: f.usuario,
+          style: { display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", padding: "8px 10px", background: "var(--bg2)", borderRadius: 9, border: "1px solid var(--border)" }
+        }, h("span", { style: { flex: 1, minWidth: 200, fontSize: 13 } },
+          h("b", null, f.grado + " " + f.nombre),
+          h("span", { style: { color: "var(--txt-dim)" } },
+            " · " + ((f.secciones || []).join(", ") || (f.rol === "supervisor" ? "Supervisión" : "sin sección")) +
+            ((f.modulos || []).length ? " · " + f.modulos.join(", ") : ""))),
+          u ? chip("✅ creado como " + u.usuario, "var(--green)", "rgba(55,214,122,.15)")
+            : h("button", {
+                className: "btn btn-lima", style: { padding: "4px 10px", fontSize: 12.5 },
+                onClick: () => setD({ grado: f.grado, nombre: f.nombre, usuario: f.usuario, password: "", rol: f.rol || "instructor", secciones: f.secciones || [], puedeCargar: true })
+              }, "Crear usuario"));
       })),
-    h("div", { style: { fontSize: 12, color: "var(--txt-dim)", marginTop: 6 } }, "Una persona puede tener más de una sección a cargo.")) : h("div", {
-    style: { marginTop: 10, fontSize: 12.5, color: "var(--txt-dim)", borderLeft: "3px solid var(--amber)", paddingLeft: 10 }
-  }, "El Supervisor Operacional consulta y descarga todo el sistema, sin cargar ni modificar legajos."),
-  /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      gap: 8,
-      marginTop: 6
-    }
-  }, /*#__PURE__*/React.createElement("button", {
-    className: "btn btn-gold",
-    disabled: guardando,
-    onClick: async () => {
-      if (guardando) return;
-      setGuardando(true);
-      try { await guardar(); } finally { setGuardando(false); }
-    }
-  }, guardando ? "Guardando…" : "Guardar"), /*#__PURE__*/React.createElement("button", {
-    className: "btn btn-ghost",
-    onClick: () => setD(null)
-  }, "Cancelar"))));
+      faltantes.length ? h("div", { style: { marginTop: 14, borderTop: "1px solid var(--border)", paddingTop: 12 } },
+        h("div", { style: { fontSize: 12.5, color: "var(--txt-dim)", marginBottom: 10, lineHeight: 1.5 } },
+          "O creá de una sola vez a los ", h("b", null, faltantes.length), " que faltan con una contraseña provisoria igual para todos. Después cada uno la cambia desde el menú de configuración."),
+        h("div", { style: { display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end" } },
+          h("div", { style: { flex: "1 1 220px", maxWidth: 300 } },
+            h(CampoPass, { val: clavePlantel, set: setClavePlantel, placeholder: "Contraseña provisoria (mínimo 6)" })),
+          h("button", { className: "btn btn-coral", disabled: creandoPlantel, onClick: crearFaltantes },
+            creandoPlantel ? "Creando…" : "Crear los " + faltantes.length + " que faltan"))) : null) : null);
+
+  return h("div", { className: "card", style: { padding: 22, maxWidth: 780, margin: "0 auto" } },
+    aBorrar ? h(Confirmar, {
+      titulo: "Eliminar usuario",
+      texto: `Vas a eliminar el acceso de ${conGrado(aBorrar)}. Si sólo querés que deje de cargar datos, usá "Quitar permiso" y el usuario queda pero sin autorización.`,
+      onOk: () => { const u = aBorrar; setABorrar(null); borrar(u); },
+      onCancel: () => setABorrar(null)
+    }) : null,
+    h("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 8 } },
+      h("h3", { style: { color: "var(--gold2)" } }, "Usuarios del sistema"),
+      h("div", { style: { display: "flex", gap: 8, flexWrap: "wrap" } },
+        h("button", { className: "btn btn-ghost", onClick: exportarXls }, h(I.excel, { style: { width: 16, height: 16 } }), "Excel"),
+        h("button", { className: "btn btn-coral", onClick: exportarPdf }, h(I.pdf, { style: { width: 16, height: 16 } }), "PDF"))),
+    h("div", { style: { fontSize: 12, color: "var(--txt-dim)", marginBottom: 14, borderLeft: "3px solid var(--coral)", paddingLeft: 10, lineHeight: 1.5 } },
+      "Todo el personal tiene que estar cargado acá, pero no todos quedan autorizados a cargar: con \u201cQuitar permiso\u201d el instructor sigue entrando, viendo todas las pestañas y descargando, pero no puede modificar ningún legajo. Las contraseñas se guardan cifradas (SHA-256 con sal): nadie puede leerlas, ni siquiera desde el código de la app."),
+    panelPlantel,
+    usuarios.map(tarjetaUsuario),
+    !d ? h("button", { className: "btn btn-gold", style: { marginTop: 8 }, onClick: () => setD({ grado: "", nombre: "", usuario: "", password: "", rol: "instructor", secciones: [], puedeCargar: true }) },
+      h(I.plus, { style: { width: 16, height: 16 } }), "Nuevo usuario") : null,
+    d ? h("div", { className: "card", style: { padding: 16, background: "var(--panel2)", marginTop: 10 } },
+      h("div", { style: { display: "flex", gap: 12, flexWrap: "wrap" } },
+        h(Campo, { l: "Grado / jerarquía", val: d.grado || "", set: v => setD({ ...d, grado: v }), editable: true, ancho: 220 }),
+        h(Campo, { l: "Apellido y nombre", val: d.nombre, set: v => setD({ ...d, nombre: v }), editable: true }),
+        h(Campo, { l: "Usuario", val: d.usuario, set: v => setD({ ...d, usuario: v }), editable: true }),
+        h(Campo, { l: d.id ? "Nueva contraseña (vacío = sin cambios)" : "Contraseña", val: d.password || "", set: v => setD({ ...d, password: v }), editable: true, type: "password" }),
+        h(Campo, { l: "Rol", val: d.rol, set: v => setD({ ...d, rol: v }), editable: true, opt: ["admin", "instructor", "supervisor"] })),
+      d.rol === "instructor" ? h("div", { style: { marginTop: 12, padding: "10px 12px", background: "var(--bg2)", borderRadius: 10, border: "1px solid var(--border)" } },
+        h("label", { className: "lbl" }, "Autorización para cargar"),
+        h("div", { style: { display: "flex", gap: 7, flexWrap: "wrap", marginTop: 4 } },
+          [[true, "✅ Puede cargar y editar"], [false, "👁️ Sólo consultar y descargar"]].map(([v, txt]) => h("button", {
+            key: String(v),
+            className: "pill-sec" + ((d.puedeCargar !== false) === v ? " on" : ""),
+            onClick: () => setD({ ...d, puedeCargar: v })
+          }, txt))),
+        h("div", { style: { fontSize: 12, color: "var(--txt-dim)", marginTop: 6 } },
+          "Sin autorización el instructor entra igual y ve todo, pero no modifica ningún legajo.")) : null,
+      d.rol !== "supervisor" ? h("div", { style: { marginTop: 10 } },
+        h("label", { className: "lbl" }, "Secciones a cargo"),
+        h("div", { style: { display: "flex", gap: 7, flexWrap: "wrap" } },
+          SECCIONES.map(sec => {
+            const puesta = (d.secciones || []).includes(sec);
+            return h("button", {
+              key: sec,
+              className: "pill-sec" + (puesta ? " on" : ""),
+              onClick: () => setD({ ...d, secciones: puesta ? (d.secciones || []).filter(x => x !== sec) : [...(d.secciones || []), sec] })
+            }, puesta ? "✓ " + sec : sec);
+          })),
+        h("div", { style: { fontSize: 12, color: "var(--txt-dim)", marginTop: 6 } }, "Una persona puede tener más de una sección a cargo.")) :
+        h("div", { style: { marginTop: 10, fontSize: 12.5, color: "var(--txt-dim)", borderLeft: "3px solid var(--amber)", paddingLeft: 10 } },
+          "El Supervisor Operacional consulta y descarga todo el sistema, sin cargar ni modificar legajos."),
+      h("div", { style: { display: "flex", gap: 8, marginTop: 14 } },
+        h("button", {
+          className: "btn btn-gold", disabled: guardando,
+          onClick: async () => {
+            if (guardando) return;
+            setGuardando(true);
+            try { await guardar(); } finally { setGuardando(false); }
+          }
+        }, guardando ? "Guardando…" : "Guardar"),
+        h("button", { className: "btn btn-ghost", onClick: () => setD(null) }, "Cancelar"))) : null);
 }
 function Cargando() {
   return /*#__PURE__*/React.createElement("div", {
@@ -4686,6 +4897,12 @@ function exportarHojas(nombreArchivo, hojas) {
   XLSX.writeFile(wb, `${nombreArchivo}_${hoy()}.xlsx`);
 }
 
+// El mismo listado, en PDF apaisado con el formato de la app
+function exportarPDFLegajos(legajos, titulo, archivo) {
+  exportarPDFHojas(archivo || "LegajoDigital_Listado", titulo,
+    [[`${titulo} · ${legajos.length} aspirante${legajos.length === 1 ? "" : "s"}`, COLS_LISTADO, legajos.map(filaListadoTexto)]], true);
+}
+
 // Botón-nombre que abre el legajo
 const btnNombre = (l, onAbrir) => h("button", {
   onClick: () => onAbrir(l),
@@ -4754,7 +4971,11 @@ function Listados({ vista, legajos, onAbrir }) {
       h("button", {
         className: "btn btn-ghost",
         onClick: () => exportarHojas(`LegajoDigital_${cfg.titulo.replace(/\s+/g, "")}`, [[cfg.titulo.slice(0, 28), COLS_LISTADO, filas.map(filaListadoTexto)]])
-      }, h(I.excel, { style: { width: 16, height: 16 } }), "Excel")),
+      }, h(I.excel, { style: { width: 16, height: 16 } }), "Excel"),
+      h("button", {
+        className: "btn btn-coral",
+        onClick: () => exportarPDFLegajos(filas, cfg.titulo, `LegajoDigital_${cfg.titulo.replace(/\s+/g, "")}`)
+      }, h(I.pdf, { style: { width: 16, height: 16 } }), "PDF")),
     h("div", { style: { fontSize: 13, color: "var(--txt-dim)", marginBottom: 12 } },
       `${filas.length} aspirante${filas.length === 1 ? "" : "s"}`,
       nq ? ` · filtrando "${q}"` : ""),
@@ -4769,68 +4990,210 @@ function Listados({ vista, legajos, onAbrir }) {
 // \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
 //  PERSONAL DE INSTRUCTORES A CARGO (secciones + gamela y m\u00f3dulos)
 // \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
-function PersonalACargo({ usuarios, acargo, onGuardar, puedeEditar, avisar }) {
-  const [pendiente, setPendiente] = useState(null);
-  const mapa = pendiente || acargo || {};
+function PersonalACargo({ usuarios, acargo, onGuardar, onGuardarUsuarios, puedeEditar, avisar }) {
+  const [mapa, setMapa] = useState(acargo || {});
+  const [editMod, setEditMod] = useState("");     // módulo que se está editando
+  const [editSec, setEditSec] = useState("");     // sección que se está editando
+  const [secIds, setSecIds] = useState({});       // ids elegidos para cada sección, sin guardar
+  const [ocupado, setOcupado] = useState(false);
+  const [aBorrar, setABorrar] = useState(null);   // { tipo, clave }
+  useEffect(() => { setMapa(acargo || {}); }, [acargo]);
   const conMando = (usuarios || []).filter(u => u.rol !== "supervisor");
-  const toggle = (modulo, id) => {
+  const aviso = (m, t) => avisar && avisar(m, t);
+
+  // ───────── SECCIONES: se guardan sobre los usuarios ─────────
+  const idsDeSeccion = sec => secIds[sec] || aCargoDe(usuarios, sec).map(u => u.id);
+  const toggleSec = (sec, id) => {
+    const ids = idsDeSeccion(sec);
+    setSecIds({ ...secIds, [sec]: ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id] });
+  };
+  const aplicarSeccion = async (sec, ids) => {
+    const nu = (usuarios || []).map(u => {
+      const tiene = (u.secciones || []).includes(sec);
+      const debe = ids.includes(u.id);
+      if (tiene === debe) return u;
+      return { ...u, secciones: debe ? [...(u.secciones || []), sec] : (u.secciones || []).filter(x => x !== sec) };
+    });
+    setOcupado(true);
+    try {
+      await onGuardarUsuarios(nu);
+      const resto = { ...secIds };
+      delete resto[sec];
+      setSecIds(resto);
+      setEditSec("");
+      aviso(ids.length ? sec + ": instructores guardados" : sec + " quedó sin instructor a cargo", "ok");
+    } catch (e) {
+      aviso("No se pudo guardar: " + e.message, "err");
+    }
+    setOcupado(false);
+  };
+
+  // ───────── GAMELA Y MÓDULOS: se guardan en la configuración ─────────
+  const toggleMod = (modulo, id) => {
     const ids = mapa[modulo] || [];
-    const nuevo = { ...mapa, [modulo]: ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id] };
-    setPendiente(nuevo);
+    setMapa({ ...mapa, [modulo]: ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id] });
   };
-  const guardar = async () => {
-    if (!pendiente) return;
-    const ok = await onGuardar(pendiente);
-    if (ok) setPendiente(null);
+  const guardarMod = async (modulo, forzar) => {
+    const nuevo = forzar ? { ...mapa, [modulo]: [] } : mapa;
+    setOcupado(true);
+    const ok = await onGuardar(nuevo);
+    if (ok) {
+      setMapa(nuevo);
+      setEditMod("");
+    }
+    setOcupado(false);
   };
-  const exportar = () => exportarHojas("LegajoDigital_PersonalACargo", [
-    ["Secciones", ["Instructor A/C", "Secci\u00f3n", "Notificado"], SECCIONES.map(sec => [nombresACargo(usuarios, sec) || "Sin asignar", sec.replace(/\D/g, ""), ""])],
-    ["Gamela y M\u00f3dulos", ["Instructor A/C", "M\u00f3dulos (Masc y Fem)", "Notificado"], ALOJAMIENTOS.map(m => [nombresDelModulo(usuarios, mapa, m) || "Sin asignar", m, ""])]
+
+  // ───────── Cargar la planilla oficial de la 2ª convocatoria ─────────
+  const cargarPlanilla = async () => {
+    const nuevo = { ...mapa };
+    let puestos = 0, conSeccion = 0;
+    const sinUsuario = [];
+    ALOJAMIENTOS.forEach(m => { nuevo[m] = []; });
+    let nuevosUsuarios = [...(usuarios || [])];
+    PERSONAL_2DA.forEach(f => {
+      const u = buscarEnUsuarios(usuarios, f);
+      if (!u) { sinUsuario.push(f.nombre); return; }
+      // secciones a cargo tal como figuran en la planilla
+      const secs = f.rol === "supervisor" ? [] : (f.secciones || []);
+      const iguales = (u.secciones || []).length === secs.length && secs.every(x => (u.secciones || []).includes(x));
+      if (!iguales) {
+        nuevosUsuarios = nuevosUsuarios.map(x => x.id === u.id ? { ...x, secciones: secs } : x);
+        conSeccion++;
+      }
+      // gamela y módulos
+      (f.modulos || []).forEach(m => {
+        if (!nuevo[m]) nuevo[m] = [];
+        if (!nuevo[m].includes(u.id)) { nuevo[m].push(u.id); puestos++; }
+      });
+    });
+    setOcupado(true);
+    try {
+      if (conSeccion) await onGuardarUsuarios(nuevosUsuarios);
+      const ok = await onGuardar(nuevo);
+      if (ok) {
+        setMapa(nuevo);
+        setEditMod("");
+        setEditSec("");
+        setSecIds({});
+        aviso(`Planilla aplicada: ${conSeccion} secci${conSeccion === 1 ? "ón actualizada" : "ones actualizadas"} y ${puestos} asignación${puestos === 1 ? "" : "es"} de gamela y módulos` +
+          (sinUsuario.length ? ` · faltan crear en Usuarios: ${sinUsuario.join(", ")}` : ""), sinUsuario.length ? "err" : "ok");
+      }
+    } catch (e) {
+      aviso("No se pudo aplicar la planilla: " + e.message, "err");
+    }
+    setOcupado(false);
+  };
+
+  // ───────── Exportar las dos planillas ─────────
+  const filasSecciones = () => SECCIONES.map(sec => [nombresACargo(usuarios, sec) || "Sin asignar", sec.replace(/\D/g, ""), ""]);
+  const filasModulos = () => ALOJAMIENTOS.map(m => [nombresDelModulo(usuarios, mapa, m) || "Sin asignar", m, ""]);
+  const hojas = () => [
+    ["Secciones", ["Instructor A/C", "Sección", "Notificado"], filasSecciones()],
+    ["Gamela y Módulos", ["Instructor A/C", "Módulos (Masc y Fem)", "Notificado"], filasModulos()]
+  ];
+  const exportarXls = () => exportarHojas("LegajoDigital_PersonalACargo", hojas());
+  const exportarPdf = () => exportarPDFHojas("LegajoDigital_PersonalACargo", "Personal de instructores a cargo", [
+    ["Personal de instructores a cargo de Sección — 2ª Convocatoria Aspirantes a Agentes Seguridad Año 2026", ["Instructor A/C", "Sección", "Notificado"], filasSecciones()],
+    ["Personal de instructores a cargo del control \u201cGamela y Módulos\u201d — 2ª Convocatoria", ["Instructor A/C", "Módulos (Masc y Fem)", "Notificado"], filasModulos()]
   ]);
-  const bloque = (titulo, subtitulo, filas) => h("div", { className: "card", style: { padding: 18, marginBottom: 16 } },
+
+  // ───────── Piezas visuales ─────────
+  const btnMini = (llave, txt, cls, onClick, titulo) => h("button", {
+    key: llave, className: "btn " + cls, style: { padding: "4px 10px", fontSize: 12.5 }, onClick, title: titulo || txt, disabled: ocupado
+  }, txt);
+
+  const selector = (ids, onToggle) => h("div", { style: { display: "flex", gap: 6, flexWrap: "wrap", marginTop: 10 } },
+    conMando.length ? conMando.map(u => {
+      const puesto = ids.includes(u.id);
+      return h("button", {
+        key: u.id,
+        className: "pill-sec" + (puesto ? " on" : ""),
+        onClick: () => onToggle(u.id)
+      }, (puesto ? "\u2713 " : "") + conGrado(u));
+    }) : h("span", { style: { fontSize: 12.5, color: "var(--txt-dim)" } },
+      "Todavía no hay instructores creados. Creálos en la pestaña Usuarios y volvé acá."));
+
+  const fila = ({ clave, nombres, editando, ids, onToggle, onEditar, onGuardarFila, onBorrarFila }) => h("div", {
+    key: clave,
+    style: { padding: "12px 14px", background: "var(--bg2)", borderRadius: 10, border: "1px solid " + (editando ? "var(--acc)" : "var(--border)") }
+  }, h("div", { style: { display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" } },
+    h("span", { className: "tag", style: { background: "var(--panel2)", color: "var(--acc2)", minWidth: 92, textAlign: "center" } }, clave),
+    h("span", { style: { flex: 1, minWidth: 180, fontSize: 13.5 } },
+      nombres || h("i", { style: { color: "var(--coral)" } }, "Sin instructor a cargo")),
+    puedeEditar ? h("div", { style: { display: "flex", gap: 6, flexWrap: "wrap" } },
+      editando
+        ? [btnMini("g", "\ud83d\udcbe Guardar", "btn-lima", onGuardarFila),
+           btnMini("c", "Cancelar", "btn-ghost", () => { onEditar(""); })]
+        : [btnMini("e", "\u270e Editar", "btn-ghost", () => onEditar(clave)),
+           btnMini("b", "\ud83d\uddd1 Borrar", "btn-red", onBorrarFila, "Dejar sin instructores a cargo")]) : null),
+    editando ? selector(ids, onToggle) : null);
+
+  const bloque = (titulo, subtitulo, contenido) => h("div", { className: "card", style: { padding: 18, marginBottom: 16 } },
     h("h3", { style: { color: "var(--acc2)", fontSize: 17, marginBottom: 4 } }, titulo),
     h("div", { style: { fontSize: 12.5, color: "var(--txt-dim)", marginBottom: 12, lineHeight: 1.5 } }, subtitulo),
-    filas);
+    contenido);
+
   return h("div", { className: "fade" },
+    aBorrar ? h(Confirmar, {
+      titulo: aBorrar.tipo === "sec" ? "Dejar la sección sin instructores" : "Dejar el módulo sin instructores",
+      texto: aBorrar.tipo === "sec"
+        ? `${aBorrar.clave} va a quedar sin instructor a cargo y sus instructores pierden el permiso de cargar los legajos de esa sección.`
+        : `${aBorrar.clave} va a quedar sin instructor a cargo en la planilla de control de alojamiento.`,
+      textoOk: "Sí, borrar",
+      onOk: () => {
+        const x = aBorrar;
+        setABorrar(null);
+        if (x.tipo === "sec") aplicarSeccion(x.clave, []);
+        else guardarMod(x.clave, true);
+      },
+      onCancel: () => setABorrar(null)
+    }) : null,
     h("div", { style: { display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", marginBottom: 14 } },
-      h("button", { className: "btn btn-ghost", onClick: exportar }, h(I.excel, { style: { width: 16, height: 16 } }), "Excel de las dos planillas"),
-      pendiente ? h("button", { className: "btn btn-lima", onClick: guardar }, "Guardar cambios") : null,
-      pendiente ? h("button", { className: "btn btn-ghost", onClick: () => setPendiente(null) }, "Descartar") : null),
+      h("button", { className: "btn btn-ghost", onClick: exportarXls }, h(I.excel, { style: { width: 16, height: 16 } }), "Excel de las dos planillas"),
+      h("button", { className: "btn btn-coral", onClick: exportarPdf }, h(I.pdf, { style: { width: 16, height: 16 } }), "PDF de las dos planillas"),
+      puedeEditar ? h("button", { className: "btn btn-lima", onClick: cargarPlanilla, disabled: ocupado },
+        "\ud83d\udc6e Cargar el personal a cargo de la planilla") : null),
+    puedeEditar ? h("div", { style: { fontSize: 12, color: "var(--txt-dim)", marginBottom: 16, lineHeight: 1.5, borderLeft: "3px solid var(--coral)", paddingLeft: 10 } },
+      "Este bot\u00f3n no toca ning\u00fan legajo ni tiene que ver con el Excel de aspirantes: s\u00f3lo completa de una vez qui\u00e9n est\u00e1 a cargo de qu\u00e9, seg\u00fan la planilla oficial de instructores. Secciones \u2014 1: Calder\u00f3n y Oses \u00b7 2: Euliarte y Seguel \u00b7 3: Castillo y Ram\u00edrez \u00b7 4: Y\u00e1\u00f1ez, Sanhueza y L\u00f3pez \u00b7 5: Romero, Quevedo y Riquelme. Gamela y m\u00f3dulos \u2014 Gamela: Euliarte, Castillo, Romero, Oses y L\u00f3pez \u00b7 M\u00f3dulo 2: Calder\u00f3n y Sanhueza \u00b7 M\u00f3dulo 3: Y\u00e1\u00f1ez y Riquelme \u00b7 M\u00f3dulos 4 y 5: Quevedo, Seguel y Ram\u00edrez. Ojo: pisa lo que ya tengas cargado a mano. Si a alguno le falta el usuario, te aviso el nombre para que lo crees en la pesta\u00f1a Usuarios.") : null,
+
     bloque("Instructores a cargo de Secci\u00f3n",
-      "Sale de los usuarios del sistema: la secci\u00f3n que tiene cada instructor a cargo es la que le habilita los legajos que puede editar. Se cambia en la pesta\u00f1a Usuarios.",
+      puedeEditar
+        ? "La secci\u00f3n que tiene cada instructor a cargo es la que le habilita los legajos que puede cargar y editar. Toc\u00e1 Editar para cambiarla ac\u00e1 mismo: se guarda tambi\u00e9n en Usuarios."
+        : "Qui\u00e9n est\u00e1 a cargo de cada secci\u00f3n. S\u00f3lo las administradoras pueden modificarlo.",
       h("div", { style: { display: "grid", gap: 8 } }, SECCIONES.map(sec => {
-        const arr = aCargoDe(usuarios, sec);
-        return h("div", {
-          key: sec,
-          style: { display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap", padding: "10px 12px", background: "var(--bg2)", borderRadius: 10, border: "1px solid var(--border)" }
-        }, h("span", { className: "tag", style: { background: "var(--panel2)", color: "var(--acc2)", minWidth: 92, textAlign: "center" } }, sec),
-          h("span", { style: { flex: 1, minWidth: 200, fontSize: 13.5 } },
-            arr.length ? arr.map(conGrado).join(" \u00b7 ") : h("i", { style: { color: "var(--coral)" } }, "Sin instructor a cargo")));
+        const ids = idsDeSeccion(sec);
+        const arr = (usuarios || []).filter(u => ids.includes(u.id));
+        return fila({
+          clave: sec,
+          nombres: arr.length ? arr.map(conGrado).join(" \u00b7 ") : "",
+          editando: editSec === sec,
+          ids,
+          onToggle: id => toggleSec(sec, id),
+          onEditar: v => { setEditSec(v); setEditMod(""); },
+          onGuardarFila: () => aplicarSeccion(sec, ids),
+          onBorrarFila: () => setABorrar({ tipo: "sec", clave: sec })
+        });
       }))),
+
     bloque("Instructores a cargo de Gamela y M\u00f3dulos",
       puedeEditar
-        ? "Toc\u00e1 a cada instructor para ponerlo o sacarlo del m\u00f3dulo. Una misma persona puede estar en m\u00e1s de uno, y esto no cambia qu\u00e9 legajos puede editar: es la planilla de control de alojamiento."
+        ? "Planilla de control de alojamiento. Toc\u00e1 Editar y despu\u00e9s a cada instructor para ponerlo o sacarlo: una misma persona puede estar en m\u00e1s de un m\u00f3dulo y esto no cambia qu\u00e9 legajos puede editar."
         : "Planilla de control de alojamiento. S\u00f3lo las administradoras pueden modificarla.",
       h("div", { style: { display: "grid", gap: 10 } }, ALOJAMIENTOS.map(m => {
         const ids = mapa[m] || [];
-        return h("div", {
-          key: m,
-          style: { padding: "12px 14px", background: "var(--bg2)", borderRadius: 10, border: "1px solid var(--border)" }
-        }, h("div", { style: { display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginBottom: puedeEditar ? 10 : 0 } },
-          h("span", { className: "tag", style: { background: "var(--panel2)", color: "var(--acc2)", minWidth: 92, textAlign: "center" } }, m),
-          h("span", { style: { flex: 1, minWidth: 200, fontSize: 13.5 } },
-            ids.length ? aCargoDelModulo(usuarios, mapa, m).map(conGrado).join(" \u00b7 ") : h("i", { style: { color: "var(--coral)" } }, "Sin instructor a cargo"))),
-          puedeEditar ? h("div", { style: { display: "flex", gap: 6, flexWrap: "wrap" } },
-            conMando.length ? conMando.map(u => {
-              const puesto = ids.includes(u.id);
-              return h("button", {
-                key: u.id,
-                className: "pill-sec" + (puesto ? " on" : ""),
-                onClick: () => toggle(m, u.id)
-              }, (puesto ? "\u2713 " : "") + conGrado(u));
-            }) : h("span", { style: { fontSize: 12.5, color: "var(--txt-dim)" } }, "Todav\u00eda no hay instructores creados. Cre\u00e1los en la pesta\u00f1a Usuarios y volv\u00e9 ac\u00e1.")) : null);
-      }))),
-    pendiente ? h("div", { style: { fontSize: 12.5, color: "var(--amber)", marginTop: 4 } }, "Hay cambios sin guardar.") : null);
+        const arr = (usuarios || []).filter(u => ids.includes(u.id));
+        return fila({
+          clave: m,
+          nombres: arr.length ? arr.map(conGrado).join(" \u00b7 ") : "",
+          editando: editMod === m,
+          ids,
+          onToggle: id => toggleMod(m, id),
+          onEditar: v => { setEditMod(v); setEditSec(""); if (!v) setMapa(acargo || {}); },
+          onGuardarFila: () => guardarMod(m),
+          onBorrarFila: () => setABorrar({ tipo: "mod", clave: m })
+        });
+      }))));
 }
 
 // \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
@@ -4871,7 +5234,14 @@ function AlojamientoVista({ legajos, onAbrir, usuarios, acargo }) {
       h("button", {
         className: "btn btn-ghost",
         onClick: () => exportarHojas("LegajoDigital_Alojamiento", grupos.filter(g => deGrupo(g).length).map(g => [g, COLS_ALOJ, deGrupo(g).map(filaAlojTexto)]))
-      }, h(I.excel, { style: { width: 16, height: 16 } }), "Excel de toda la distribución")),
+      }, h(I.excel, { style: { width: 16, height: 16 } }), "Excel de toda la distribución"),
+      h("button", {
+        className: "btn btn-coral",
+        onClick: () => exportarPDFHojas("LegajoDigital_Alojamiento", "Distribución de alojamiento",
+          grupos.filter(g => deGrupo(g).length).map(g => [
+            `${g}${nombresDelModulo(usuarios, acargo, g) ? " · A/C " + nombresDelModulo(usuarios, acargo, g) : ""} · ${deGrupo(g).length} aspirantes`,
+            COLS_ALOJ, deGrupo(g).map(filaAlojTexto)]), true)
+      }, h(I.pdf, { style: { width: 16, height: 16 } }), "PDF de toda la distribución")),
     sub !== "Sin asignar" ? h("div", {
       className: "card",
       style: { padding: "12px 15px", marginBottom: 14, borderLeft: "4px solid var(--coral)", display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }
@@ -4930,7 +5300,7 @@ function Tabla({ cols, filas, vacio }) {
         filas.map((f, i) => h("tr", { key: i, style: { background: i % 2 ? "transparent" : "var(--panel2)" } },
           f.map((c, j) => h("td", { key: j, style: { padding: "9px 10px", borderBottom: "1px solid var(--border)", verticalAlign: "top" } }, c)))))));
 }
-function Administracion({ legajos, usuarios, accesos, recorrido, avisos, onAbrir, onCompletar, avisar, onImportarPlanilla, acargo, onGuardarACargo, puedeEditarACargo }) {
+function Administracion({ legajos, usuarios, accesos, recorrido, avisos, onAbrir, onCompletar, avisar, onImportarPlanilla, acargo, onGuardarACargo, puedeEditarACargo, onGuardarUsuarios }) {
   const [sub, setSub] = useState("");
   const refExcel = useRef(null);
   const [impListado, setImpListado] = useState("2do listado");
@@ -4944,6 +5314,11 @@ function Administracion({ legajos, usuarios, accesos, recorrido, avisos, onAbrir
     ["acargo", "\ud83d\udc6e", "Personal a cargo", "Instructores de cada secci\u00f3n y de gamela y m\u00f3dulos"]
   ];
   const cont = { maxWidth: 1000, margin: "0 auto", padding: "0 16px 60px" };
+  const COLS_ACC = ["Fecha y hora", "Usuario", "Acceso", "Rol"];
+  const filasAcc = () => [...accesos].reverse().map(a => [a.fecha || "", a.nombre || "", a.usuario || "", ROLES[a.rol] || a.rol || ""]);
+  const COLS_REC = ["Fecha y hora", "Usuario", "Acción", "Detalle"];
+  const filasRec = () => [...recorrido].reverse().map(r => [r.fecha || "", r.nombre || r.usuario || "", r.accion || "", r.detalle || ""]);
+  const COLS_REV = ["Revisión", "Aspirante", "DNI", "Sección", "Estado"];
   if (!sub) {
     return h("div", { className: "fade", style: cont },
       h("h2", { style: { fontSize: 15, letterSpacing: 4, color: "var(--coral2)", fontFamily: "'Oswald'", margin: "24px 0 16px" } }, "ADMINISTRACIÓN"),
@@ -4962,7 +5337,12 @@ function Administracion({ legajos, usuarios, accesos, recorrido, avisos, onAbrir
   if (sub === "accesos") {
     return h("div", { className: "fade", style: cont }, volver,
       h("h2", { style: { fontSize: 22, color: "var(--acc2)", marginBottom: 4 } }, "Registro de Accesos"),
-      h("div", { style: { fontSize: 13, color: "var(--txt-dim)", marginBottom: 16 } }, `${accesos.length} ingreso${accesos.length === 1 ? "" : "s"} registrados`),
+      h("div", { style: { fontSize: 13, color: "var(--txt-dim)", marginBottom: 12 } }, `${accesos.length} ingreso${accesos.length === 1 ? "" : "s"} registrados`),
+      h("div", { style: { display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 } },
+        h("button", { className: "btn btn-ghost", onClick: () => exportarHojas("LegajoDigital_Accesos", [["Accesos", COLS_ACC, filasAcc()]]) },
+          h(I.excel, { style: { width: 16, height: 16 } }), "Excel"),
+        h("button", { className: "btn btn-coral", onClick: () => exportarPDFHojas("LegajoDigital_Accesos", "Registro de accesos", [["Registro de accesos", COLS_ACC, filasAcc()]]) },
+          h(I.pdf, { style: { width: 16, height: 16 } }), "PDF")),
       h("div", { className: "card", style: { padding: 4 } },
         h(Tabla, {
           cols: ["Fecha y hora", "Usuario", "Acceso", "Rol"],
@@ -4973,7 +5353,12 @@ function Administracion({ legajos, usuarios, accesos, recorrido, avisos, onAbrir
   if (sub === "recorrido") {
     return h("div", { className: "fade", style: cont }, volver,
       h("h2", { style: { fontSize: 22, color: "var(--acc2)", marginBottom: 4 } }, "Recorrido de Usuarios"),
-      h("div", { style: { fontSize: 13, color: "var(--txt-dim)", marginBottom: 16 } }, "Cada pantalla abierta y cada guardado queda registrado."),
+      h("div", { style: { fontSize: 13, color: "var(--txt-dim)", marginBottom: 12 } }, "Cada pantalla abierta y cada guardado queda registrado."),
+      h("div", { style: { display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 } },
+        h("button", { className: "btn btn-ghost", onClick: () => exportarHojas("LegajoDigital_Recorrido", [["Recorrido", COLS_REC, filasRec()]]) },
+          h(I.excel, { style: { width: 16, height: 16 } }), "Excel"),
+        h("button", { className: "btn btn-coral", onClick: () => exportarPDFHojas("LegajoDigital_Recorrido", "Recorrido de usuarios", [["Recorrido de usuarios", COLS_REC, filasRec()]]) },
+          h(I.pdf, { style: { width: 16, height: 16 } }), "PDF")),
       h("div", { className: "card", style: { padding: 4 } },
         h(Tabla, {
           cols: ["Fecha y hora", "Usuario", "Acción", "Detalle"],
@@ -4986,7 +5371,7 @@ function Administracion({ legajos, usuarios, accesos, recorrido, avisos, onAbrir
       h("h2", { style: { fontSize: 22, color: "var(--acc2)", marginBottom: 4 } }, "Personal de instructores a cargo"),
       h("div", { style: { fontSize: 13, color: "var(--txt-dim)", marginBottom: 18, lineHeight: 1.5 } },
         "Las dos planillas de la 2\u00b0 convocatoria: qui\u00e9n est\u00e1 a cargo de cada secci\u00f3n y qui\u00e9n del control de gamela y m\u00f3dulos."),
-      h(PersonalACargo, { usuarios, acargo, onGuardar: onGuardarACargo, puedeEditar: !!puedeEditarACargo, avisar }));
+      h(PersonalACargo, { usuarios, acargo, onGuardar: onGuardarACargo, onGuardarUsuarios, puedeEditar: !!puedeEditarACargo, avisar }));
   }
   if (sub === "panel") {
     let usado = 0;
@@ -5012,7 +5397,8 @@ function Administracion({ legajos, usuarios, accesos, recorrido, avisos, onAbrir
         h("div", { style: { display: "flex", gap: 10, flexWrap: "wrap" } },
           h("button", { className: "btn btn-ghost", onClick: () => descargarRespaldo(legajos, usuarios, accesos, recorrido) }, "💾 Descargar respaldo completo"),
           ASPIRANTES_SEMILLA.length ? h("button", { className: "btn btn-ghost", onClick: onCompletar }, "⤓ Cargar datos del listado oficial") : null,
-          h("button", { className: "btn btn-ghost", onClick: () => exportarExcel(legajos) }, "📊 Exportar todo a Excel")),
+          h("button", { className: "btn btn-ghost", onClick: () => exportarExcel(legajos) }, "📊 Exportar todo a Excel"),
+          h("button", { className: "btn btn-coral", onClick: () => exportarPDFLegajos(legajos, "Todos los legajos", "LegajoDigital_Completo") }, h(I.pdf, { style: { width: 16, height: 16 } }), "Exportar todo a PDF")),
         h("div", { style: { fontSize: 12, color: "var(--txt-dim)", marginTop: 12, lineHeight: 1.5 } },
           "El respaldo guarda todos los legajos en un archivo .json en tu equipo. Las contraseñas nunca se incluyen.")),
       onImportarPlanilla ? h("div", { className: "card", style: { padding: 20, marginTop: 14 } },
@@ -5084,11 +5470,21 @@ function Administracion({ legajos, usuarios, accesos, recorrido, avisos, onAbrir
     ["Certificado médico vencido", legajos.filter(l => (l.certMedico || {}).tiene === "Sí" && diasHasta((l.certMedico || {}).hasta) !== null && diasHasta((l.certMedico || {}).hasta) < 0)],
     ["Baja / desafectación sin motivo indicado", legajos.filter(l => esInactivo(l) && !(l.motivoEstado || "").trim())]
   ];
+  const filasRevision = () => {
+    const f = [];
+    chequeos.forEach(([titulo, arr]) => arr.forEach(l => f.push([titulo, `${l.apellido || "—"}${l.nombre ? ", " + l.nombre : ""}`, l.dni || "—", l.seccion || "Sin asignar", l.estado || "Activo"])));
+    return f;
+  };
   const sinInstructor = SECCIONES.filter(sec => !aCargoDe(usuarios, sec).length);
   const sinACargoModulo = ALOJAMIENTOS.filter(m => !aCargoDelModulo(usuarios, acargo, m).length);
   return h("div", { className: "fade", style: cont }, volver,
     h("h2", { style: { fontSize: 22, color: "var(--acc2)", marginBottom: 4 } }, "Revisión de datos"),
-    h("div", { style: { fontSize: 13, color: "var(--txt-dim)", marginBottom: 16 } }, "Tocá cualquier nombre para abrir el legajo y completarlo."),
+    h("div", { style: { fontSize: 13, color: "var(--txt-dim)", marginBottom: 12 } }, "Tocá cualquier nombre para abrir el legajo y completarlo."),
+    h("div", { style: { display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 } },
+      h("button", { className: "btn btn-ghost", onClick: () => exportarHojas("LegajoDigital_Revision", [["Revisión", COLS_REV, filasRevision()]]) },
+        h(I.excel, { style: { width: 16, height: 16 } }), "Excel"),
+      h("button", { className: "btn btn-coral", onClick: () => exportarPDFHojas("LegajoDigital_Revision", "Revisión de datos", [["Todo lo que falta revisar", COLS_REV, filasRevision()]]) },
+        h(I.pdf, { style: { width: 16, height: 16 } }), "PDF")),
     h("div", {
       className: "card",
       style: { padding: 16, marginBottom: 12, borderLeft: `4px solid ${sinInstructor.length ? "var(--coral)" : "var(--green)"}` }
@@ -5313,6 +5709,10 @@ function App() {
   const guardarLegajo = async l => {
     const anterior = data.legajos.find(x => x.id === l.id);
     if (!esAdmin(user)) {
+      if (!puedeCargarDatos(user)) {
+        toast("No tenés autorización para cargar: podés consultar y descargar todo, pero no modificar legajos.", "err");
+        return;
+      }
       const mias = user.secciones || [];
       if (!l.seccion || !mias.includes(l.seccion)) {
         toast(mias.length ? `Sólo podés cargar o editar legajos de ${mias.join(" y ")}.` : "No tenés secciones a cargo: no podés editar legajos.", "err");
@@ -5700,7 +6100,11 @@ function App() {
       !enBajas ? h("select", { className: "inp", style: { width: "auto", minWidth: 110 }, value: fAsist, onChange: e => setFAsist(e.target.value) },
         h("option", { value: "" }, "Toda la asistencia"), ASISTENCIA.map(e => h("option", { key: e, value: e }, e))) : null,
       h("button", { className: "btn btn-ghost", onClick: () => exportarExcel(filtrados) }, h(I.excel, { style: { width: 16, height: 16 } }), "Excel"),
-      !enBajas && (esAdmin(user) || (user.secciones || []).length) ? h("button", {
+      h("button", {
+        className: "btn btn-coral",
+        onClick: () => exportarPDFLegajos(filtrados, enBajas ? "Bajas, Desistieron y Desafectados" : (fSeccion || "Legajos activos"), "LegajoDigital_Legajos")
+      }, h(I.pdf, { style: { width: 16, height: 16 } }), "PDF"),
+      !enBajas && puedeCargarDatos(user) && (esAdmin(user) || (user.secciones || []).length) ? h("button", {
         className: "btn btn-lima",
         onClick: () => {
           const mias = user.secciones || [];
@@ -5763,6 +6167,7 @@ function App() {
       }, h("span", { style: { fontSize: 17 } }, "👁️"),
         h("span", null, "Sólo lectura. ",
           user.rol === "supervisor" ? "Perfil de supervisión: podés consultar todos los legajos y descargar lo que necesites, pero no modificarlos."
+            : user.puedeCargar === false ? "Tu usuario está sin autorización para cargar: podés ver todas las pestañas y descargar lo que necesites, pero no modificar legajos."
             : sel.seccion ? `${sel.seccion} no está a tu cargo, podés consultar el legajo pero no modificarlo.`
             : "Este legajo todavía no tiene sección asignada; una administradora tiene que asignarla."))) : null,
     h(Detalle, {
@@ -5775,7 +6180,8 @@ function App() {
     legajos: data.legajos, usuarios: data.usuarios, accesos, recorrido, avisos,
     onAbrir: l => setSel(l), onCompletar: completarDesdeListado, avisar: toast,
     onImportarPlanilla: importarPlanilla,
-    acargo, onGuardarACargo: guardarACargo, puedeEditarACargo: esAdmin(user)
+    acargo, onGuardarACargo: guardarACargo, puedeEditarACargo: esAdmin(user),
+    onGuardarUsuarios: guardarUsuarios
   }) : VISTAS_LISTADO[vista] ? h(Listados, {
     vista, legajos: visibles, onAbrir: l => setSel(l)
   }) : vista === "alojamiento" ? h(AlojamientoVista, {
