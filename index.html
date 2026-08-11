@@ -310,7 +310,7 @@ const h = React.createElement;
 const APP_NOMBRE = "LEGAJO DIGITAL DEL ASPIRANTE";
 const APP_CORTO = "Legajo Digital";
 const APP_SUB = "del Aspirante";
-const APP_VER = "4.8";
+const APP_VER = "4.9";
 
 // ══════════════════════════════════════════════════════════════
 //  CONEXIÓN A SUPABASE
@@ -4276,10 +4276,12 @@ function UsuariosTab({ data, setData, toast }) {
   const [guardando, setGuardando] = useState(false);
   const [aBorrar, setABorrar] = useState(null);
   const [verPlantel, setVerPlantel] = useState(false);
+  const [errAuth, setErrAuth] = useState("");
   const [clavePlantel, setClavePlantel] = useState("");
   const [creandoPlantel, setCreandoPlantel] = useState(false);
 
-  const guardar = async () => {
+  const guardar = async saltearAuth => {
+    setErrAuth("");
     if (!d.nombre || !d.usuario) {
       toast("Nombre y usuario son obligatorios", "err");
       return;
@@ -4309,25 +4311,48 @@ function UsuariosTab({ data, setData, toast }) {
       puedeCargar: rol === "admin" ? true : rol === "supervisor" ? false : d.puedeCargar !== false
     };
     base.hash = d.password ? await hashPass(d.password) : existente ? existente.hash : "";
-    if (sb && !existente && d.password) {
-      // Crea la cuenta en Auth y devuelve la sesión de la administradora
+    if (sb && !existente && d.password && !saltearAuth) {
+      // Crea la cuenta en Auth y devuelve la sesión de la administradora.
+      // Si Supabase no deja (cuenta ya creada, límite de altas por hora, etc.)
+      // se prueba entrar con esa misma clave: si entra, la cuenta sirve igual.
+      let previa = null;
+      try { previa = (await sb.auth.getSession()).data.session; } catch (e) {}
+      let listo = false, motivo = "";
       try {
-        const previa = (await sb.auth.getSession()).data.session;
         const { error } = await sb.auth.signUp({ email: correoDe(d.usuario), password: d.password });
-        if (previa) await sb.auth.setSession({ access_token: previa.access_token, refresh_token: previa.refresh_token });
-        if (error && !/already registered/i.test(error.message)) {
-          toast("No se pudo crear el acceso: " + error.message, "err");
-          return;
-        }
+        if (!error) listo = true; else motivo = error.message || "";
       } catch (e) {
-        toast("No se pudo crear el acceso: " + e.message, "err");
+        motivo = e.message || "no se pudo hablar con Supabase";
+      }
+      if (!listo) {
+        try {
+          const ver = await sb.auth.signInWithPassword({ email: correoDe(d.usuario), password: d.password });
+          if (!ver.error) {
+            listo = true;
+            motivo = "";
+          } else if (/Email not confirmed/i.test(ver.error.message)) {
+            motivo = `La cuenta ${correoDe(d.usuario)} existe en Supabase pero está sin confirmar. Confirmala en Authentication → Users (Confirm user) y volvé a guardar.`;
+          } else if (/already registered/i.test(motivo) || /Invalid login/i.test(ver.error.message)) {
+            motivo = `La cuenta ${correoDe(d.usuario)} ya existe en Supabase pero con otra contraseña. Poné acá la que ya tiene, o cambiásela en Authentication → Users.`;
+          } else if (/rate limit|after \d+ seconds|429/i.test(motivo)) {
+            motivo = "Supabase frenó las altas por haber creado varias cuentas seguidas (" + motivo + "). Esperá unos minutos y volvé a guardar, o creala en Authentication → Users y guardá acá con esa misma clave.";
+          }
+        } catch (e) {}
+      }
+      if (previa) {
+        try { await sb.auth.setSession({ access_token: previa.access_token, refresh_token: previa.refresh_token }); } catch (e) {}
+      }
+      if (!listo) {
+        setErrAuth(motivo || "Supabase no dejó crear el acceso y no dio ningún detalle.");
+        toast("No se pudo crear el acceso en Supabase", "err");
         return;
       }
     } else if (sb && existente && d.password) {
       // Usuario que ya existe: el cambio de clave lo hace la base
       const r = await cambiarClaveDe(d.usuario, d.password);
       if (r !== "OK") {
-        toast(r.replace(/^ERROR:\s*/, ""), "err");
+        setErrAuth(r.replace(/^ERROR:\s*/, "") + " · Si dice que no existe la función, falta correr una vez el SQL de lda_cambiar_clave en Supabase.");
+        toast("No se pudo cambiar la contraseña", "err");
         return;
       }
     }
@@ -4336,7 +4361,10 @@ function UsuariosTab({ data, setData, toast }) {
       await DB.guardarUsuarios(nu);
       setData({ ...data, usuarios: nu });
       setD(null);
-      toast(cambioClave ? "Guardado. La contraseña nueva ya se puede entregar." : "Usuario guardado", "ok");
+      setErrAuth("");
+      toast(saltearAuth
+        ? "Ficha guardada. El acceso hay que crearlo en Supabase con esta misma contraseña."
+        : cambioClave ? "Guardado. La contraseña nueva ya se puede entregar." : "Usuario guardado", "ok");
     } catch (e) {
       toast("Error: " + e.message, "err");
     }
@@ -4519,6 +4547,10 @@ function UsuariosTab({ data, setData, toast }) {
         h(Campo, { l: "Usuario", val: d.usuario, set: v => setD({ ...d, usuario: v }), editable: true }),
         h(Campo, { l: d.id ? "Nueva contraseña (vacío = sin cambios)" : "Contraseña", val: d.password || "", set: v => setD({ ...d, password: v }), editable: true, type: "password" }),
         h(Campo, { l: "Rol", val: d.rol, set: v => setD({ ...d, rol: v }), editable: true, opt: ["admin", "instructor", "supervisor"] })),
+      d.usuario ? h("div", { style: { fontSize: 12, color: "var(--txt-dim)", marginTop: 8, lineHeight: 1.5 } },
+        "Acceso interno que usa la base: ",
+        h("b", { style: { color: "var(--acc2)", userSelect: "all" } }, correoDe(d.usuario)),
+        " — tiene que ser igual al de Supabase (Authentication → Users) si la cuenta ya estaba creada.") : null,
       d.rol === "instructor" ? h("div", { style: { marginTop: 12, padding: "10px 12px", background: "var(--bg2)", borderRadius: 10, border: "1px solid var(--border)" } },
         h("label", { className: "lbl" }, "Autorización para cargar"),
         h("div", { style: { display: "flex", gap: 7, flexWrap: "wrap", marginTop: 4 } },
@@ -4552,7 +4584,25 @@ function UsuariosTab({ data, setData, toast }) {
             try { await guardar(); } finally { setGuardando(false); }
           }
         }, guardando ? "Guardando…" : "Guardar"),
-        h("button", { className: "btn btn-ghost", onClick: () => setD(null) }, "Cancelar"))) : null);
+        h("button", { className: "btn btn-ghost", onClick: () => { setD(null); setErrAuth(""); } }, "Cancelar")),
+      errAuth ? h("div", {
+        style: { marginTop: 14, background: "var(--bg2)", border: "1px solid var(--border)", borderLeft: "4px solid var(--red)", borderRadius: 12, padding: "12px 14px" }
+      }, h("div", { style: { display: "flex", gap: 9, alignItems: "flex-start" } },
+        h("span", { style: { fontSize: 17 } }, "⚠️"),
+        h("div", { style: { fontSize: 12.5, lineHeight: 1.5, minWidth: 0 } },
+          h("b", { style: { fontFamily: "'Oswald'", fontSize: 14, letterSpacing: .4, display: "block", marginBottom: 3 } }, "Supabase no dejó crear el acceso"),
+          h("div", { style: { wordBreak: "break-word" } }, errAuth))),
+        !d.id ? h("div", { style: { marginTop: 11, display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" } },
+          h("button", {
+            className: "btn btn-ghost", style: { fontSize: 12, padding: "6px 12px" }, disabled: guardando,
+            onClick: async () => {
+              if (guardando) return;
+              setGuardando(true);
+              try { await guardar(true); } finally { setGuardando(false); }
+            }
+          }, "Guardar la ficha igual, sin tocar Supabase"),
+          h("span", { style: { fontSize: 11.5, color: "var(--txt-dim)", flex: "1 1 200px", lineHeight: 1.45 } },
+            "Queda el usuario con su rol y sus secciones, pero no va a poder entrar hasta que exista la cuenta en Supabase con esa misma contraseña.")) : null) : null) : null);
 }
 function Cargando() {
   return /*#__PURE__*/React.createElement("div", {
