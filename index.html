@@ -310,7 +310,7 @@ const h = React.createElement;
 const APP_NOMBRE = "LEGAJO DIGITAL DEL ASPIRANTE";
 const APP_CORTO = "Legajo Digital";
 const APP_SUB = "del Aspirante";
-const APP_VER = "4.9";
+const APP_VER = "5.0";
 
 // ══════════════════════════════════════════════════════════════
 //  CONEXIÓN A SUPABASE
@@ -332,6 +332,9 @@ const TABLAS = {
   config: "lda_config"          // parámetros sueltos
 };
 const CLAVE_ACARGO = "alojamiento_acargo";   // quién está a cargo de cada módulo y de la gamela
+// Quiénes NO están autorizados a cargar. Va en lda_config y no en lda_usuarios
+// porque esa tabla tiene las columnas fijas y este dato se perdía al guardar.
+const CLAVE_SIN_CARGA = "usuarios_sin_autorizacion";
 const LIMITE_ARCHIVO_MB = 12;   // tope por archivo subido
 const LADO_MAX_FOTO = 1400;     // las fotos se achican antes de subir
 const CALIDAD_FOTO = 0.72;
@@ -861,9 +864,15 @@ const DB = {
       } catch (e) {}
     }
     const ru = await _withTimeout(sb.from(TABLAS.usuarios).select("*"));
+    let sinCarga = [];
+    try {
+      const rc = await _withTimeout(sb.from(TABLAS.config).select("value").eq("key", CLAVE_SIN_CARGA).maybeSingle());
+      if (rc.data && Array.isArray(rc.data.value)) sinCarga = rc.data.value;
+    } catch (e) {}
     let usuarios = (ru.data || []).map(u => ({
       id: u.id, grado: u.grado || "", nombre: u.nombre, usuario: u.usuario,
-      hash: u.hash, rol: u.rol, secciones: u.secciones || []
+      hash: u.hash, rol: u.rol, secciones: u.secciones || [],
+      puedeCargar: u.rol === "supervisor" ? false : !sinCarga.includes(u.id)
     }));
     if (!usuarios.length) {
       usuarios = USUARIOS_SEMILLA;
@@ -903,6 +912,11 @@ const DB = {
     }
     const { error } = await _withTimeout(sb.from(TABLAS.usuarios).upsert(lista.map(filaUsuario), { onConflict: "id" }));
     if (error) throw error;
+    // La autorización para cargar viaja aparte, en la tabla de configuración
+    try {
+      const sinCarga = lista.filter(u => u.rol === "instructor" && u.puedeCargar === false).map(u => u.id);
+      await _withTimeout(sb.from(TABLAS.config).upsert({ key: CLAVE_SIN_CARGA, value: sinCarga }, { onConflict: "key" }));
+    } catch (e) {}
     try {
       const ids = lista.map(u => u.id);
       const { data } = await _withTimeout(sb.from(TABLAS.usuarios).select("id"));
@@ -1014,13 +1028,19 @@ async function cambiarClaveDe(usuario, nueva) {
 async function perfilDe(usuario) {
   const { data, error } = await _withTimeout(sb.from(TABLAS.usuarios).select("*").eq("usuario", norm(usuario).trim()).maybeSingle());
   if (error || !data) return null;
+  let autorizado = true;
+  try {
+    const rc = await _withTimeout(sb.from(TABLAS.config).select("value").eq("key", CLAVE_SIN_CARGA).maybeSingle());
+    if (rc.data && Array.isArray(rc.data.value)) autorizado = !rc.data.value.includes(data.id);
+  } catch (e) {}
   return {
     id: data.id,
     grado: data.grado || "",
     nombre: data.nombre,
     usuario: data.usuario,
     rol: data.rol,
-    secciones: data.secciones || []
+    secciones: data.secciones || [],
+    puedeCargar: data.rol === "supervisor" ? false : autorizado
   };
 }
 async function sesionActiva() {
@@ -4560,7 +4580,7 @@ function UsuariosTab({ data, setData, toast }) {
             onClick: () => setD({ ...d, puedeCargar: v })
           }, txt))),
         h("div", { style: { fontSize: 12, color: "var(--txt-dim)", marginTop: 6 } },
-          "Sin autorización el instructor entra igual y ve todo, pero no modifica ningún legajo.")) : null,
+          "Sin autorización el instructor entra igual y ve todo, pero no modifica ningún legajo. Se aplica en cuanto guardás y también cuando la persona vuelve a entrar.")) : null,
       d.rol !== "supervisor" ? h("div", { style: { marginTop: 10 } },
         h("label", { className: "lbl" }, "Secciones a cargo"),
         h("div", { style: { display: "flex", gap: 7, flexWrap: "wrap" } },
