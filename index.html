@@ -310,7 +310,7 @@ const h = React.createElement;
 const APP_NOMBRE = "LEGAJO DIGITAL DEL ASPIRANTE";
 const APP_CORTO = "Legajo Digital";
 const APP_SUB = "del Aspirante";
-const APP_VER = "4.6";
+const APP_VER = "4.7";
 
 // ══════════════════════════════════════════════════════════════
 //  CONEXIÓN A SUPABASE
@@ -345,7 +345,15 @@ try {
 
 // ====== HELPERS ======
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
-const hoy = () => new Date().toISOString().slice(0, 10);
+// Fecha del reloj de la computadora, NO en UTC: con toISOString(), pasadas las
+// 21 de Argentina la app ya daba el día siguiente
+const fechaISO = f => {
+  const d = f instanceof Date ? f : new Date(f);
+  const p2 = n => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
+};
+const hoy = () => fechaISO(new Date());
+const hoyMenos = dias => fechaISO(new Date(Date.now() - dias * 86400000));
 const fmtFecha = s => {
   if (!s) return "—";
   const d = new Date(s + (s.length <= 10 ? "T00:00:00" : ""));
@@ -4736,11 +4744,7 @@ function MenuConfig(props) {
   const { user, rol, tema, onTema, paletaPref, onPaleta, cerrar, avisar, usuarios, guardarUsuarios, legajos, accesos, recorrido, refrescar } = props;
   const [modal, setModal] = useState(null);
   const [saludo, setSaludoLocal] = useState(getSaludoPref(user.usuario));
-  const [desde, setDesde] = useState(() => {
-    const d = new Date();
-    d.setDate(d.getDate() - 7);
-    return d.toISOString().slice(0, 10);
-  });
+  const [desde, setDesde] = useState(() => hoyMenos(7));
   const [hasta, setHasta] = useState(hoy());
   const pal = PALETAS.find(p => p.id === paletaVigente()) || PALETAS[0];
   const auto = paletaPref === "auto";
@@ -4815,7 +4819,7 @@ function MenuConfig(props) {
         h(Campo, { l: "Desde", val: desde, set: setDesde, editable: true, type: "date" }),
         h(Campo, { l: "Hasta", val: hasta, set: setHasta, editable: true, type: "date" })),
       h("div", { style: { display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 8 } },
-        h("button", { className: "btn btn-ghost", onClick: () => { const d = new Date(); d.setDate(d.getDate() - 7); setDesde(d.toISOString().slice(0, 10)); setHasta(hoy()); } }, "Última semana"),
+        h("button", { className: "btn btn-ghost", onClick: () => { const d = new Date(); d.setDate(d.getDate() - 7); setDesde(hoyMenos(7)); setHasta(hoy()); } }, "Última semana"),
         h("button", { className: "btn btn-coral", onClick: () => { try { imprimirRegistros(desde, hasta, recorrido, accesos, legajos); setModal(null); } catch (e) { avisar("No se pudo generar: " + e.message, "err"); } } }, "Generar PDF"))) : null,
     modal === "pass" ? h(Modal, { titulo: "Cambiar mi contraseña", emoji: "🔑", onCerrar: () => setModal(null) },
       h(CambiarPass, { user, usuarios, onGuardar: guardarUsuarios, cerrar: () => setModal(null), avisar })) : null,
@@ -5727,6 +5731,7 @@ function PanelAsistencia({ legajos, onAbrir, esAdministradora, onLimpiar }) {
   const sin = cuenta(l => !l.asistencia);
   const tot = cuenta(() => true);
   const deHoy = activos.filter(l => l.asistencia && l.asistenciaFecha === hoy()).length;
+  const viejas = activos.filter(l => l.asistencia && l.asistenciaFecha && l.asistenciaFecha !== hoy());
   const caja = (titulo, d, color, emoji) => h("div", {
     className: "card",
     style: { padding: 15, background: "var(--panel2)", borderLeft: `4px solid ${color}` }
@@ -5779,6 +5784,16 @@ function PanelAsistencia({ legajos, onAbrir, esAdministradora, onLimpiar }) {
       caja("ausentes", aus, "var(--red)", "❌"),
       caja("sin cargar", sin, "var(--amber)", "❔"),
       caja("en actividad", tot, "var(--acc2)", "👥")),
+    viejas.length ? h("div", {
+      style: { marginTop: 16, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", background: "var(--bg2)", border: "1px solid var(--border)", borderLeft: "4px solid var(--amber)", borderRadius: 12, padding: "12px 14px" }
+    }, h("span", { style: { fontSize: 18 } }, "⚠️"),
+      h("span", { style: { fontSize: 12.5, flex: "1 1 220px", lineHeight: 1.5 } },
+        h("b", null, `${viejas.length} marca${viejas.length === 1 ? "" : "s"} ${viejas.length === 1 ? "es" : "son"} de días anteriores`),
+        " — quedaron como estaban la última vez que se cargó la asistencia."),
+      esAdministradora && onLimpiar ? h("button", {
+        className: "btn btn-ghost", style: { fontSize: 12, padding: "6px 12px" },
+        onClick: () => setConfirmar(true)
+      }, "🧹 Dejarlas en blanco") : null) : null,
     aus.t ? h("div", { style: { marginTop: 16 } },
       h("div", { style: { fontSize: 12.5, color: "var(--txt-dim)", marginBottom: 7 } },
         `Quién falta hoy (${aus.t}) — tocá el nombre para abrir el legajo:`),
@@ -5889,7 +5904,7 @@ function Inicio({ legajos, onAbrir, user, onIrA, onLimpiarAsistencia }) {
     (!fTipo || (n.tipo || "Novedad general") === fTipo) &&
     (!fSec || (n.legajo.seccion || "Sin asignar") === fSec) &&
     (!nq || norm(`${nombreDe(n.legajo)} ${n.texto || ""} ${n.tipo || ""} ${n.autor || ""} ${n.legajo.dni || ""}`).includes(nq)));
-  const desdeSemana = new Date(Date.now() - 6 * 86400000).toISOString().slice(0, 10);
+  const desdeSemana = hoyMenos(6);
   const deLaSemana = items.filter(n => (n.fecha || "") >= desdeSemana).length;
   const conNovedad = new Set(items.map(n => n.legajo.id)).size;
   const activos = (legajos || []).filter(l => !esInactivo(l)).length;
