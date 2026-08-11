@@ -310,7 +310,7 @@ const h = React.createElement;
 const APP_NOMBRE = "LEGAJO DIGITAL DEL ASPIRANTE";
 const APP_CORTO = "Legajo Digital";
 const APP_SUB = "del Aspirante";
-const APP_VER = "4.7";
+const APP_VER = "4.8";
 
 // ══════════════════════════════════════════════════════════════
 //  CONEXIÓN A SUPABASE
@@ -5543,8 +5543,11 @@ function AlojamientoVista({ legajos, onAbrir, usuarios, acargo, user, onGuardar 
 // ══════════════════════════════════════════════════════════
 //  LISTADO MADRE — todos, incluidos bajas, desistieron y desafectados
 // ══════════════════════════════════════════════════════════
-const COLS_MADRE = ["N°", "Apellido y Nombre", "DNI", "Sexo", "Sección", "Alojamiento", "Listado", "Estado", "Motivo", "Fecha de alta", "Fecha de baja", "Fecha desistió", "Fecha desafectado"];
-const filaMadreTexto = (l, i) => [i + 1, nombreDe(l), l.dni || "", l.sexo || "", l.seccion || "Sin asignar",
+// El domicilio y la localidad son los del legajo, pestaña Datos personales
+const localidadDe = l => l.localidad || l.ciudad || "";
+const COLS_MADRE = ["N°", "Apellido y Nombre", "DNI", "Sexo", "Domicilio", "Localidad / Ciudad", "Provincia", "Sección", "Alojamiento", "Listado", "Estado", "Motivo", "Fecha de alta", "Fecha de baja", "Fecha desistió", "Fecha desafectado"];
+const filaMadreTexto = (l, i) => [i + 1, nombreDe(l), l.dni || "", l.sexo || "",
+  l.domicilioReal || "", localidadDe(l), l.provincia || "", l.seccion || "Sin asignar",
   alojDe(l) || "Sin asignar", l.listado || "1er listado", l.estado || "Activo", l.motivoEstado || "",
   fmtFecha(l.fechaAlta), fmtFecha(fechaDeEstado(l, "Baja")), fmtFecha(fechaDeEstado(l, "Desistió")), fmtFecha(fechaDeEstado(l, "Desafectado"))];
 
@@ -5555,13 +5558,13 @@ function ListadoMadre({ legajos, onAbrir }) {
   const nq = norm(q).trim();
   const filas = todos.filter(l =>
     (!fEst || (l.estado || "Activo") === fEst) &&
-    (!nq || norm(`${nombreDe(l)} ${l.dni || ""} ${l.seccion || ""} ${l.estado || ""} ${l.motivoEstado || ""} ${l.localidad || ""}`).includes(nq)));
+    (!nq || norm(`${nombreDe(l)} ${l.dni || ""} ${l.seccion || ""} ${l.estado || ""} ${l.motivoEstado || ""} ${l.domicilioReal || ""} ${localidadDe(l)} ${l.provincia || ""}`).includes(nq)));
   const cuenta = e => todos.filter(l => (l.estado || "Activo") === e).length;
   const cont = { maxWidth: 1300, margin: "0 auto", padding: "0 16px 60px" };
   return h("div", { className: "fade", style: cont },
     h("h2", { style: { fontSize: 26, color: "var(--acc2)", margin: "22px 0 4px" } }, "Listado madre"),
     h("div", { style: { fontSize: 13, color: "var(--txt-dim)", marginBottom: 16, lineHeight: 1.5 } },
-      "El listado completo de la convocatoria: están todos, los que siguen y los que no — bajas, desistimientos, desafectados y egresados — con la fecha en que cada uno entró y la fecha del movimiento que lo sacó. Es el listado que no se toca: de acá sale cualquier informe histórico."),
+      "El listado completo de la convocatoria: están todos, los que siguen y los que no — bajas, desistimientos, desafectados y egresados — con domicilio, localidad y provincia de cada uno, la fecha en que entró y la fecha del movimiento que lo sacó. Es el listado que no se toca: de acá sale cualquier informe histórico. Se corre para el costado para ver todas las columnas."),
     h("div", { style: { display: "flex", gap: 7, flexWrap: "wrap", marginBottom: 14 } },
       h("button", { className: "pill-sec" + (fEst === "" ? " on" : ""), onClick: () => setFEst("") }, "Todos ", h("b", null, todos.length)),
       ESTADOS_ASP.map(e => h("button", {
@@ -5572,7 +5575,7 @@ function ListadoMadre({ legajos, onAbrir }) {
     h("div", { style: { display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", marginBottom: 12 } },
       h("input", {
         className: "inp", style: { width: "auto", flex: "1 1 240px", maxWidth: 380 },
-        placeholder: "Buscar por apellido, DNI, sección, motivo…",
+        placeholder: "Buscar por apellido, DNI, domicilio, localidad, sección, motivo…",
         value: q, onChange: e => setQ(e.target.value)
       }),
       h("button", {
@@ -5591,7 +5594,8 @@ function ListadoMadre({ legajos, onAbrir }) {
     h("div", { className: "card", style: { padding: 4 } },
       h(Tabla, {
         cols: COLS_MADRE,
-        filas: filas.map((l, i) => [i + 1, btnNombre(l, onAbrir), l.dni || "—", l.sexo || "—", l.seccion || "Sin asignar",
+        filas: filas.map((l, i) => [i + 1, btnNombre(l, onAbrir), l.dni || "—", l.sexo || "—",
+          l.domicilioReal || "—", localidadDe(l) || "—", l.provincia || "—", l.seccion || "Sin asignar",
           alojDe(l) || "Sin asignar", l.listado || "1er listado", chipEstado(l.estado), l.motivoEstado || "—",
           fmtFecha(l.fechaAlta), fmtFecha(fechaDeEstado(l, "Baja")), fmtFecha(fechaDeEstado(l, "Desistió")), fmtFecha(fechaDeEstado(l, "Desafectado"))]),
         vacio: "No hay aspirantes cargados todavía."
