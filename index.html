@@ -310,7 +310,7 @@ const h = React.createElement;
 const APP_NOMBRE = "LEGAJO DIGITAL DEL ASPIRANTE";
 const APP_CORTO = "Legajo Digital";
 const APP_SUB = "del Aspirante";
-const APP_VER = "5.0";
+const APP_VER = "5.2";
 
 // ══════════════════════════════════════════════════════════════
 //  CONEXIÓN A SUPABASE
@@ -812,6 +812,40 @@ const filaUsuario = u => ({
 });
 
 // Las fotos se achican antes de subir: ocupan mucho menos y se ven igual
+// ══════════════════════════════════════════════════════════════
+//  MENSAJES DE ERROR AL SUBIR ARCHIVOS
+//  Supabase contesta en inglés y con jerga de base de datos.
+//  Acá lo traducimos a algo que se entienda y que diga qué hacer.
+// ══════════════════════════════════════════════════════════════
+function textoDeError(e) {
+  if (!e) return "";
+  return [e.message, e.error, e.statusCode, e.status, e.hint, e.details].filter(Boolean).join(" ");
+}
+function esErrorDePermiso(e) {
+  return /row-level security|violates row|unauthorized|not authorized|permission|forbidden|\b40[13]\b/i.test(textoDeError(e));
+}
+async function sesionViva() {
+  if (!sb) return false;
+  try {
+    const { data } = await sb.auth.getSession();
+    if (data && data.session && data.session.access_token) return true;
+    const r = await sb.auth.refreshSession();
+    return !!(r && r.data && r.data.session);
+  } catch (e) {
+    return false;
+  }
+}
+function mensajeDeSubida(e) {
+  const detalle = textoDeError(e) || "sin detalle";
+  if (esErrorDePermiso(e))
+    return "Supabase no te deja guardar archivos con tu usuario: al depósito lda-archivos le faltan los permisos de subida para el resto del equipo. Es un ajuste que se hace UNA sola vez en Supabase (Storage → Policies) y no depende de la app ni de tu clave. Avisale a la Secretaría Académica. Detalle técnico: " + detalle;
+  if (/exceeded|too large|payload|size/i.test(detalle))
+    return "El archivo pesa demasiado. Probá con una foto más liviana o saquela de nuevo con menos calidad. Detalle técnico: " + detalle;
+  if (/timeout|network|fetch|failed to/i.test(detalle))
+    return "Se cortó la conexión mientras se subía. Fijate la señal y probá de nuevo. Detalle técnico: " + detalle;
+  return "No se pudo subir el archivo. Detalle técnico: " + detalle;
+}
+
 async function comprimirImagen(file) {
   if (!file || !/^image\//.test(file.type) || /gif|svg/.test(file.type)) return file;
   try {
@@ -973,8 +1007,18 @@ const DB = {
       lsSet(LS_FILES, d);
       return path;
     }
-    const { error } = await _withTimeout(sb.storage.from(STORAGE_BUCKET).upload(path, file, { upsert: true, contentType: file.type || "application/octet-stream" }), 60000);
-    if (error) throw error;
+    const intentar = () => _withTimeout(sb.storage.from(STORAGE_BUCKET).upload(path, file, { upsert: true, contentType: file.type || "application/octet-stream" }), 60000);
+    let { error } = await intentar();
+    // Si el rechazo es de permisos puede ser una sesion vencida: la renuevo y pruebo una vez mas.
+    if (error && esErrorDePermiso(error)) {
+      if (await sesionViva()) {
+        const otra = await intentar();
+        error = otra.error;
+      } else {
+        throw new Error("Se venció tu sesión en este dispositivo. Cerrá sesión, volvé a entrar con tu usuario y contraseña y subí el archivo de nuevo.");
+      }
+    }
+    if (error) throw new Error(mensajeDeSubida(error));
     return path;
   },
   urlPublica(path) {
@@ -4826,7 +4870,7 @@ function MenuConfig(props) {
     const archivos = lsGet(LS_FILES, {});
     const claves = Object.keys(archivos);
     if (!claves.length) return avisar("No hay adjuntos guardados en este dispositivo", "ok");
-    let ok = 0;
+    let ok = 0, motivo = "";
     for (const ruta of claves) {
       try {
         const resp = await fetch(archivos[ruta]);
@@ -4835,10 +4879,13 @@ function MenuConfig(props) {
         if (!error) {
           delete archivos[ruta];
           ok++;
-        }
-      } catch (e) {}
+        } else if (!motivo) motivo = mensajeDeSubida(error);
+      } catch (e) {
+        if (!motivo) motivo = mensajeDeSubida(e);
+      }
     }
     lsSet(LS_FILES, archivos);
+    if (!ok && motivo) return avisar(motivo, "err");
     avisar(`${ok} adjunto${ok === 1 ? "" : "s"} migrado${ok === 1 ? "" : "s"} a la nube`, "ok");
   };
   const cuerpo = h("div", null,
@@ -5612,29 +5659,243 @@ function AlojamientoVista({ legajos, onAbrir, usuarios, acargo, user, onGuardar 
 
 // ══════════════════════════════════════════════════════════
 //  LISTADO MADRE — todos, incluidos bajas, desistieron y desafectados
+//  Trae TODO lo que se carga en el legajo. Como es muchísima
+//  información por aspirante, las columnas están agrupadas en bloques
+//  que se prenden y apagan: la pantalla muestra los bloques elegidos
+//  y el Excel completo se baja siempre con todo, prendido o no.
 // ══════════════════════════════════════════════════════════
-// El domicilio y la localidad son los del legajo, pestaña Datos personales
 const localidadDe = l => l.localidad || l.ciudad || "";
-const COLS_MADRE = ["N°", "Apellido y Nombre", "DNI", "Sexo", "Domicilio", "Localidad / Ciudad", "Provincia", "Sección", "Alojamiento", "Listado", "Estado", "Motivo", "Fecha de alta", "Fecha de baja", "Fecha desistió", "Fecha desafectado"];
-const filaMadreTexto = (l, i) => [i + 1, nombreDe(l), l.dni || "", l.sexo || "",
-  l.domicilioReal || "", localidadDe(l), l.provincia || "", l.seccion || "Sin asignar",
-  alojDe(l) || "Sin asignar", l.listado || "1er listado", l.estado || "Activo", l.motivoEstado || "",
-  fmtFecha(l.fechaAlta), fmtFecha(fechaDeEstado(l, "Baja")), fmtFecha(fechaDeEstado(l, "Desistió")), fmtFecha(fechaDeEstado(l, "Desafectado"))];
+// Junta varios datos en una sola celda, salteando los que están vacíos
+const campos = (...xs) => xs.map(x => x === undefined || x === null ? "" : String(x).trim()).filter(Boolean).join(", ");
+const listaTxt = (arr, fn) => (arr || []).map(fn).map(x => (x || "").trim()).filter(Boolean).join("  |  ");
+const cuenta0 = arr => (arr || []).length || "";
+
+const txtHijos = l => listaTxt(l.hijos, x => campos(x.nombre, x.edad ? x.edad + " años" : "", x.estudia ? "estudia: " + x.estudia : ""));
+const txtHermanos = l => listaTxt(l.hermanos, x => campos(x.nombre, x.edad ? x.edad + " años" : ""));
+const txtEstudios = l => listaTxt(l.estudios, e => campos(e.titulo, e.instituto, e.anioEgreso ? "egreso " + e.anioEgreso : "", e.adeudaMaterias ? "adeuda: " + e.adeudaMaterias : ""));
+const txtEmpleos = l => listaTxt(l.empleos, e => campos(e.oficio, e.especialidad, e.anio, e.otros));
+const txtRecargos = l => listaTxt(l.recargos, r => campos(fmtFecha(r.fecha), r.motivo, r.dispuestoPor ? "disp. " + r.dispuestoPor : ""));
+const txtSanciones = l => listaTxt(l.sanciones, s => campos(s.tipo, fmtFecha(s.fecha), s.dias ? s.dias + " días" : "", s.descripcion, s.dispuestoPor ? "disp. " + s.dispuestoPor : ""));
+const txtExpedientes = l => listaTxt(l.expedientes, x => campos(x.nro, fmtFecha(x.fecha), x.caratula, x.estado, x.detalle));
+const txtNovedades = l => listaTxt([...(l.novedades || [])].sort((a, b) => (b.fecha || "").localeCompare(a.fecha || "")), n => campos(fmtFecha(n.fecha), n.tipo, n.texto, n.autor));
+const txtPermisos = l => listaTxt([...(l.permisos || [])].sort((a, b) => (b.fecha || "").localeCompare(a.fecha || "")), p => campos(fmtFecha(p.fecha), p.hora, p.motivo, p.estado));
+const txtCarpetas = l => listaTxt(l.carpetas, c => campos(c.nombre, (c.archivos || []).length ? (c.archivos || []).length + " archivo(s)" : ""));
+const txtCertMedico = l => {
+  const cm = l.certMedico || {};
+  if (!cm.tiene) return "";
+  return campos(cm.tiene, cm.desde ? "desde " + fmtFecha(cm.desde) : "", cm.hasta ? "hasta " + fmtFecha(cm.hasta) : "", cm.motivo);
+};
+const txtLicencia = l => {
+  const c = l.carnet || {};
+  if (!c.posee) return "No";
+  return campos(c.categoria, c.queManeja) || "Sí";
+};
+const med = (l, k) => (l.medico || {})[k] || {};
+
+// Cada bloque: { id, nombre, emoji, cols: [[etiqueta, texto(l,i), pantalla(l,i,onAbrir)]] }
+const GRUPOS_MADRE = [
+  { id: "ident", nombre: "Identificación", emoji: "🪪", fijo: true, cols: [
+    ["N°", (l, i) => i + 1],
+    ["Apellido y Nombre", l => nombreDe(l), (l, i, onAbrir) => btnNombre(l, onAbrir)],
+    ["DNI", l => l.dni || ""],
+    ["Sexo", l => l.sexo || ""]
+  ]},
+  { id: "estado", nombre: "Estado y fechas", emoji: "📌", cols: [
+    ["Listado", l => l.listado || "1er listado"],
+    ["Estado", l => l.estado || "Activo", l => chipEstado(l.estado)],
+    ["Motivo del estado", l => l.motivoEstado || ""],
+    ["Fecha de alta", l => fmtFecha(l.fechaAlta)],
+    ["Fecha de baja", l => fmtFecha(fechaDeEstado(l, "Baja"))],
+    ["Fecha desistió", l => fmtFecha(fechaDeEstado(l, "Desistió"))],
+    ["Fecha desafectado", l => fmtFecha(fechaDeEstado(l, "Desafectado"))],
+    ["Última asistencia", l => l.asistencia ? campos(l.asistencia, l.asistenciaFecha ? "el " + fmtFecha(l.asistenciaFecha) : "") : ""]
+  ]},
+  { id: "destino", nombre: "Sección y alojamiento", emoji: "🏠", cols: [
+    ["Sección", l => l.seccion || "Sin asignar"],
+    ["Módulo / Gamela", l => alojDe(l) || "Sin asignar"],
+    ["Habitación", l => habDe(l)]
+  ]},
+  { id: "contacto", nombre: "Domicilio y contacto", emoji: "📍", cols: [
+    ["Domicilio real", l => l.domicilioReal || ""],
+    ["Domicilio legal", l => l.domicilioLegal || ""],
+    ["Localidad / Ciudad", l => localidadDe(l)],
+    ["Provincia", l => l.provincia || ""],
+    ["Código postal", l => l.codigoPostal || ""],
+    ["Teléfono", l => l.telefono || ""],
+    ["Teléfono de emergencia", l => l.telEmergencia || ""],
+    ["Email", l => l.email || ""]
+  ]},
+  { id: "personales", nombre: "Datos personales", emoji: "👤", cols: [
+    ["Fecha de nacimiento", l => fmtFecha(l.fechaNac)],
+    ["Edad", l => l.edad || ""],
+    ["Lugar de nacimiento", l => l.lugarNac || ""],
+    ["CUIL", l => l.cuil || ""],
+    ["N° de legajo", l => l.legajoNro || ""],
+    ["Credencial", l => l.credencial || ""],
+    ["Grupo sanguíneo", l => l.grupoSang || ""],
+    ["Peso", l => l.peso || ""],
+    ["Altura", l => l.altura || ""],
+    ["Obra social", l => l.obraSocial || ""]
+  ]},
+  { id: "familia", nombre: "Grupo familiar", emoji: "👨‍👩‍👧", cols: [
+    ["Estado civil", l => (l.familia || {}).estadoCivil || ""],
+    ["Con quién vive", l => (l.familia || {}).conQuienVive || ""],
+    ["Casa propia", l => (l.familia || {}).casaPropia || ""],
+    ["Alquila", l => (l.familia || {}).alquila || ""],
+    ["Conviven", l => (l.familia || {}).conviven || ""],
+    ["Cónyuge", l => (l.familia || {}).conyugeNombre || ""],
+    ["Edad del cónyuge", l => (l.familia || {}).conyugeEdad || ""],
+    ["DNI del cónyuge", l => (l.familia || {}).conyugeDni || ""],
+    ["Ocupación del cónyuge", l => (l.familia || {}).conyugeOcupacion || ""],
+    ["Cantidad de hijos", l => (l.familia || {}).cantidadHijos || cuenta0(l.hijos)],
+    ["Hijos", txtHijos],
+    ["Observaciones del grupo familiar", l => (l.familia || {}).observaciones || ""]
+  ]},
+  { id: "padres", nombre: "Padres y hermanos", emoji: "👪", cols: [
+    ["Padre", l => (l.padre || {}).nombre || ""],
+    ["Padre vive", l => (l.padre || {}).vive || ""],
+    ["Edad del padre", l => (l.padre || {}).edad || ""],
+    ["Ocupación del padre", l => (l.padre || {}).ocupacion || ""],
+    ["Teléfono del padre", l => (l.padre || {}).telefono || ""],
+    ["Domicilio del padre", l => (l.padre || {}).domicilio || ""],
+    ["Madre", l => (l.madre || {}).nombre || ""],
+    ["Madre vive", l => (l.madre || {}).vive || ""],
+    ["Edad de la madre", l => (l.madre || {}).edad || ""],
+    ["Ocupación de la madre", l => (l.madre || {}).ocupacion || ""],
+    ["Teléfono de la madre", l => (l.madre || {}).telefono || ""],
+    ["Domicilio de la madre", l => (l.madre || {}).domicilio || ""],
+    ["Hermanos", txtHermanos]
+  ]},
+  { id: "estudios", nombre: "Estudios y empleos", emoji: "🎓", cols: [
+    ["Estudios cursados", txtEstudios],
+    ["Empleos y oficios", txtEmpleos]
+  ]},
+  { id: "salud", nombre: "Salud", emoji: "🩺", cols: [
+    ["Certificado médico", txtCertMedico],
+    ["Enfermedad a informar", l => l.enfermedadInformar || ""],
+    ["Medicación que consume", l => l.medicacionConsume || ""],
+    ["Cirugías", l => campos(med(l, "cirugias").tiene, med(l, "cirugias").tipo, med(l, "cirugias").secuela, med(l, "cirugias").observaciones)],
+    ["Patologías", l => campos(med(l, "patologias").tiene, med(l, "patologias").tipo, med(l, "patologias").medicacion, med(l, "patologias").observaciones)],
+    ["Traumatológicos", l => campos(med(l, "traumatologicos").tiene, med(l, "traumatologicos").motivo, med(l, "traumatologicos").tratamiento, med(l, "traumatologicos").observaciones)],
+    ["Medicación (antecedentes)", l => campos(med(l, "medicacion").toma, med(l, "medicacion").detalle)],
+    ["Lentes", l => campos(med(l, "lentes").usa, med(l, "lentes").tipo)],
+    ["Alergias", l => campos(med(l, "alergico").es, med(l, "alergico").causa, med(l, "alergico").medicacion)],
+    ["Preocupacional", l => {
+      const p = l.preocupacional || {};
+      return p.realizado ? campos("Realizado", fmtFecha(p.fecha), p.apto, p.observaciones) : "No";
+    }]
+  ]},
+  { id: "licencia", nombre: "Licencia y talles", emoji: "🚗", cols: [
+    ["Licencia de conducir", txtLicencia],
+    ["Licencia emitida", l => fmtFecha((l.carnet || {}).fechaEmision)],
+    ["Licencia vence", l => fmtFecha((l.carnet || {}).vencimiento)],
+    ["Municipio de la licencia", l => (l.carnet || {}).municipio || ""],
+    ["Talle camisa", l => (l.talles || {}).camisa || ""],
+    ["Talle fajina", l => (l.talles || {}).fajina || ""],
+    ["Talle overol", l => (l.talles || {}).overol || ""],
+    ["Talle campera", l => (l.talles || {}).campera || ""],
+    ["Talle tricota", l => (l.talles || {}).tricota || ""],
+    ["Calzado", l => (l.talles || {}).calzado || ""],
+    ["Cinto", l => (l.talles || {}).cinto || ""],
+    ["Gorra", l => (l.talles || {}).gorra || ""]
+  ]},
+  { id: "antecedentes", nombre: "Antecedentes", emoji: "⚖️", cols: [
+    ["Certificado tramitado en", l => (l.antecedentes || {}).certTramitadoEn || ""],
+    ["Fecha del certificado", l => fmtFecha((l.antecedentes || {}).certFecha)],
+    ["Certificado entregado en", l => (l.antecedentes || {}).certEntregadoEn || ""],
+    ["Registra antecedentes", l => (l.antecedentes || {}).registraAntecedentes || ""],
+    ["Proceso judicial", l => (l.antecedentes || {}).procesoJudicial || ""],
+    ["Observaciones de antecedentes", l => (l.antecedentes || {}).observaciones || ""],
+    ["Otras observaciones", l => (l.antecedentes || {}).otrasObservaciones || ""]
+  ]},
+  { id: "operativo", nombre: "Legajo operativo", emoji: "🛡️", cols: [
+    ["Recargos", l => cuenta0(l.recargos)],
+    ["Detalle de recargos", txtRecargos],
+    ["Amonestaciones", l => (l.sanciones || []).filter(x => x.tipo === "Amonestación").length || ""],
+    ["Sanciones", l => (l.sanciones || []).filter(x => x.tipo === "Sanción").length || ""],
+    ["Detalle de sanciones", txtSanciones],
+    ["Expedientes", l => cuenta0(l.expedientes)],
+    ["Detalle de expedientes", txtExpedientes],
+    ["Observaciones generales", l => l.observaciones || ""]
+  ]},
+  { id: "novedades", nombre: "Novedades y permisos", emoji: "📝", cols: [
+    ["Novedades", l => cuenta0(l.novedades)],
+    ["Detalle de novedades", txtNovedades],
+    ["Permisos para retirarse", l => cuenta0(l.permisos)],
+    ["Detalle de permisos", txtPermisos]
+  ]},
+  { id: "docs", nombre: "Documentación adjunta", emoji: "📎", cols: [
+    ["Foto", l => l.fotoPath ? "Sí" : "No"],
+    ["DNI frente", l => l.dniFrentePath ? "Sí" : "No"],
+    ["DNI dorso", l => l.dniDorsoPath ? "Sí" : "No"],
+    ["Licencia adjunta", l => (l.carnet || {}).path ? "Sí" : "No"],
+    ["Preocupacional adjunto", l => (l.preocupacional || {}).path ? "Sí" : "No"],
+    ["Carpetas", txtCarpetas]
+  ]}
+];
+
+// Los bloques que vienen prendidos al abrir la pestaña
+const MADRE_INICIAL = ["ident", "estado", "destino", "contacto"];
+const grupoMadre = id => GRUPOS_MADRE.find(g => g.id === id);
+const colsDeGrupos = ids => GRUPOS_MADRE.filter(g => g.fijo || ids.includes(g.id)).flatMap(g => g.cols);
+const TODAS_MADRE = GRUPOS_MADRE.flatMap(g => g.cols);
+const etiquetasDe = cols => cols.map(c => c[0]);
+const filaDe = (cols, l, i) => cols.map(c => {
+  const v = c[1](l, i);
+  return v === undefined || v === null ? "" : v;
+});
+// Todo el legajo en un solo texto, para que el buscador encuentre por cualquier dato
+const textoLegajo = l => norm(TODAS_MADRE.map(c => String(c[1](l, 0) || "")).join(" "));
+
+// En pantalla las celdas largas se recortan: el texto completo aparece al apoyar el dedo
+const celdaMadre = (c, l, i, onAbrir) => {
+  if (c[2]) return c[2](l, i, onAbrir);
+  const v = String(c[1](l, i) === undefined || c[1](l, i) === null ? "" : c[1](l, i));
+  if (!v.trim()) return h("span", { style: { color: "var(--txt-dim)" } }, "—");
+  if (v.length <= 46) return v;
+  return h("span", { title: v, style: { cursor: "help", borderBottom: "1px dotted var(--border)" } }, v.slice(0, 44) + "…");
+};
+
+// Las listas de cada aspirante van además en hojas aparte del Excel,
+// una fila por hijo, por estudio, por sanción, etc.
+const HOJAS_DETALLE_MADRE = [
+  ["Hijos", ["Hijo/a", "Edad", "Estudia"], l => (l.hijos || []).map(x => [x.nombre || "", x.edad || "", x.estudia || ""])],
+  ["Hermanos", ["Hermano/a", "Edad"], l => (l.hermanos || []).map(x => [x.nombre || "", x.edad || ""])],
+  ["Estudios", ["Título", "Instituto", "Año de egreso", "Adeuda materias"], l => (l.estudios || []).map(e => [e.titulo || "", e.instituto || "", e.anioEgreso || "", e.adeudaMaterias || ""])],
+  ["Empleos y oficios", ["Año", "Oficio", "Especialidad", "Otros"], l => (l.empleos || []).map(e => [e.anio || "", e.oficio || "", e.especialidad || "", e.otros || ""])],
+  ["Recargos", ["Fecha", "Motivo", "Dispuesto por"], l => (l.recargos || []).map(r => [fmtFecha(r.fecha), r.motivo || "", r.dispuestoPor || ""])],
+  ["Sanciones", ["Tipo", "Fecha", "Días", "Descripción", "Dispuesto por"], l => (l.sanciones || []).map(s => [s.tipo || "", fmtFecha(s.fecha), s.dias || "", s.descripcion || "", s.dispuestoPor || ""])],
+  ["Expedientes", ["N°", "Fecha", "Carátula", "Estado", "Detalle"], l => (l.expedientes || []).map(x => [x.nro || "", fmtFecha(x.fecha), x.caratula || "", x.estado || "", x.detalle || ""])],
+  ["Novedades", ["Fecha", "Tipo", "Novedad", "Cargó"], l => (l.novedades || []).map(n => [fmtFecha(n.fecha), n.tipo || "", n.texto || "", n.autor || ""])],
+  ["Permisos para retirarse", ["Fecha del franco", "Hora de salida", "Motivo", "Resolución"], l => (l.permisos || []).map(p => [fmtFecha(p.fecha), p.hora || "", p.motivo || "", p.estado || ""])]
+];
+const hojaDetalle = (legajos, [nombre, cols, saca]) => {
+  const filas = [];
+  legajos.forEach(l => saca(l).forEach(f => filas.push([nombreDe(l), l.dni || "", l.seccion || "Sin asignar", ...f])));
+  return [nombre, ["Aspirante", "DNI", "Sección", ...cols], filas];
+};
 
 function ListadoMadre({ legajos, onAbrir }) {
   const [q, setQ] = useState("");
   const [fEst, setFEst] = useState("");
+  const [grupos, setGrupos] = useState(MADRE_INICIAL);
   const todos = useMemo(() => [...(legajos || [])].sort(ordenNombre), [legajos]);
   const nq = norm(q).trim();
-  const filas = todos.filter(l =>
+  const filas = useMemo(() => todos.filter(l =>
     (!fEst || (l.estado || "Activo") === fEst) &&
-    (!nq || norm(`${nombreDe(l)} ${l.dni || ""} ${l.seccion || ""} ${l.estado || ""} ${l.motivoEstado || ""} ${l.domicilioReal || ""} ${localidadDe(l)} ${l.provincia || ""}`).includes(nq)));
+    (!nq || textoLegajo(l).includes(nq))), [todos, fEst, nq]);
   const cuenta = e => todos.filter(l => (l.estado || "Activo") === e).length;
+  const cols = colsDeGrupos(grupos);
   const cont = { maxWidth: 1300, margin: "0 auto", padding: "0 16px 60px" };
+  const prender = id => setGrupos(gs => gs.includes(id) ? gs.filter(x => x !== id) : [...gs, id]);
+  const opcionales = GRUPOS_MADRE.filter(g => !g.fijo);
+  const excelCompleto = () => exportarHojas("LegajoDigital_ListadoMadre_Completo",
+    [["Listado madre", etiquetasDe(TODAS_MADRE), filas.map((l, i) => filaDe(TODAS_MADRE, l, i))]]
+      .concat(HOJAS_DETALLE_MADRE.map(hd => hojaDetalle(filas, hd))));
   return h("div", { className: "fade", style: cont },
     h("h2", { style: { fontSize: 26, color: "var(--acc2)", margin: "22px 0 4px" } }, "Listado madre"),
     h("div", { style: { fontSize: 13, color: "var(--txt-dim)", marginBottom: 16, lineHeight: 1.5 } },
-      "El listado completo de la convocatoria: están todos, los que siguen y los que no — bajas, desistimientos, desafectados y egresados — con domicilio, localidad y provincia de cada uno, la fecha en que entró y la fecha del movimiento que lo sacó. Es el listado que no se toca: de acá sale cualquier informe histórico. Se corre para el costado para ver todas las columnas."),
+      "El listado completo de la convocatoria con TODO lo que se carga en cada legajo: están todos, los que siguen y los que no — bajas, desistimientos, desafectados y egresados. Es el listado que no se toca: de acá sale cualquier informe histórico."),
     h("div", { style: { display: "flex", gap: 7, flexWrap: "wrap", marginBottom: 14 } },
       h("button", { className: "pill-sec" + (fEst === "" ? " on" : ""), onClick: () => setFEst("") }, "Todos ", h("b", null, todos.length)),
       ESTADOS_ASP.map(e => h("button", {
@@ -5642,32 +5903,52 @@ function ListadoMadre({ legajos, onAbrir }) {
         className: "pill-sec" + (fEst === e ? " on" : ""),
         onClick: () => setFEst(e)
       }, e, " ", h("b", null, cuenta(e))))),
+    h("div", { className: "card", style: { padding: "14px 15px", marginBottom: 14 } },
+      h("div", { style: { display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", marginBottom: 10 } },
+        h("span", { style: { fontFamily: "'Oswald'", letterSpacing: .6, color: "var(--coral2)", fontSize: 13 } }, "QUÉ MOSTRAR EN PANTALLA"),
+        h("span", { style: { fontSize: 12, color: "var(--txt-dim)", flex: "1 1 auto" } },
+          `${cols.length} columnas a la vista de ${TODAS_MADRE.length} que tiene el legajo`),
+        h("button", { className: "btn btn-ghost", style: { padding: "5px 11px", fontSize: 12 }, onClick: () => setGrupos(opcionales.map(g => g.id)) }, "Mostrar todo"),
+        h("button", { className: "btn btn-ghost", style: { padding: "5px 11px", fontSize: 12 }, onClick: () => setGrupos(MADRE_INICIAL) }, "Volver a lo básico")),
+      h("div", { style: { display: "flex", gap: 7, flexWrap: "wrap" } },
+        opcionales.map(g => h("button", {
+          key: g.id,
+          className: "pill-sec" + (grupos.includes(g.id) ? " on" : ""),
+          onClick: () => prender(g.id),
+          title: `${g.cols.length} columnas`
+        }, g.emoji, " ", g.nombre, " ", h("b", null, g.cols.length)))),
+      h("div", { style: { fontSize: 12, color: "var(--txt-dim)", marginTop: 10, lineHeight: 1.5 } },
+        "Prendé sólo los bloques que necesitás mirar y la tabla se corre para el costado. Las celdas largas se recortan: apoyá el dedo sobre el texto para verlo entero, o tocá el apellido para abrir el legajo completo. El Excel completo se baja con las ",
+        TODAS_MADRE.length, " columnas, estén prendidas o no.")),
     h("div", { style: { display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", marginBottom: 12 } },
       h("input", {
         className: "inp", style: { width: "auto", flex: "1 1 240px", maxWidth: 380 },
-        placeholder: "Buscar por apellido, DNI, domicilio, localidad, sección, motivo…",
+        placeholder: "Buscar en todo el legajo: apellido, DNI, domicilio, motivo, novedad…",
         value: q, onChange: e => setQ(e.target.value)
       }),
       h("button", {
+        className: "btn btn-lima",
+        onClick: excelCompleto
+      }, h(I.excel, { style: { width: 16, height: 16 } }), "Excel completo"),
+      h("button", {
         className: "btn btn-ghost",
-        onClick: () => exportarHojas("LegajoDigital_ListadoMadre", [["Listado madre", COLS_MADRE, filas.map(filaMadreTexto)]])
-      }, h(I.excel, { style: { width: 16, height: 16 } }), "Excel"),
+        onClick: () => exportarHojas("LegajoDigital_ListadoMadre", [["Listado madre", etiquetasDe(cols), filas.map((l, i) => filaDe(cols, l, i))]])
+      }, h(I.excel, { style: { width: 16, height: 16 } }), "Excel de lo que veo"),
       h("button", {
         className: "btn btn-coral",
         onClick: () => exportarPDFHojas("LegajoDigital_ListadoMadre", "Listado madre",
-          [[`Listado madre · ${filas.length} aspirante${filas.length === 1 ? "" : "s"}`, COLS_MADRE, filas.map(filaMadreTexto)]], true)
-      }, h(I.pdf, { style: { width: 16, height: 16 } }), "PDF")),
-    h("div", { style: { fontSize: 13, color: "var(--txt-dim)", marginBottom: 12 } },
+          [[`Listado madre · ${filas.length} aspirante${filas.length === 1 ? "" : "s"}`, etiquetasDe(cols), filas.map((l, i) => filaDe(cols, l, i))]], true)
+      }, h(I.pdf, { style: { width: 16, height: 16 } }), "PDF de lo que veo")),
+    h("div", { style: { fontSize: 12.5, color: "var(--txt-dim)", marginBottom: 12, lineHeight: 1.5 } },
       `${filas.length} aspirante${filas.length === 1 ? "" : "s"}`,
       fEst ? ` · ${fEst}` : "",
-      nq ? ` · filtrando "${q}"` : ""),
+      nq ? ` · filtrando "${q}"` : "",
+      " · El Excel completo trae la hoja del listado con todo y, aparte, una hoja por cada lista del legajo (hijos, estudios, empleos, sanciones, expedientes, novedades y permisos), con una fila por registro. Para el PDF conviene dejar prendidos pocos bloques, si no las columnas quedan muy finitas."),
     h("div", { className: "card", style: { padding: 4 } },
       h(Tabla, {
-        cols: COLS_MADRE,
-        filas: filas.map((l, i) => [i + 1, btnNombre(l, onAbrir), l.dni || "—", l.sexo || "—",
-          l.domicilioReal || "—", localidadDe(l) || "—", l.provincia || "—", l.seccion || "Sin asignar",
-          alojDe(l) || "Sin asignar", l.listado || "1er listado", chipEstado(l.estado), l.motivoEstado || "—",
-          fmtFecha(l.fechaAlta), fmtFecha(fechaDeEstado(l, "Baja")), fmtFecha(fechaDeEstado(l, "Desistió")), fmtFecha(fechaDeEstado(l, "Desafectado"))]),
+        cols: etiquetasDe(cols),
+        filas: filas.map((l, i) => cols.map(c => celdaMadre(c, l, i, onAbrir))),
+        fijas: 2,
         vacio: "No hay aspirantes cargados todavía."
       })));
 }
@@ -6163,17 +6444,42 @@ function descargarRespaldo(legajos, usuarios, accesos, recorrido) {
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 3000);
 }
-function Tabla({ cols, filas, vacio }) {
+// fijas: cuántas columnas de la izquierda quedan clavadas al correr la tabla
+// para el costado (sirve cuando hay muchísimas columnas: siempre se ve de quién
+// es cada fila). Soporta hasta 2 y por defecto está apagado.
+const ANCHOS_FIJOS = [42, 170];
+function Tabla({ cols, filas, vacio, fijas }) {
+  const nf = Math.min(fijas || 0, 2);
+  const izqDe = j => j === 0 ? 0 : ANCHOS_FIJOS[0];
+  const fija = (j, fondo) => j >= nf ? null : {
+    position: "sticky",
+    left: izqDe(j),
+    background: fondo,
+    minWidth: ANCHOS_FIJOS[j],
+    borderRight: j === nf - 1 ? "1px solid var(--border)" : undefined
+  };
   return h("div", { style: { overflowX: "auto" } },
     h("table", { style: { width: "100%", borderCollapse: "collapse", fontSize: 13 } },
-      h("thead", null, h("tr", null, cols.map(c => h("th", {
-        key: c,
-        style: { textAlign: "left", padding: "10px 10px", background: "var(--panel2)", color: "var(--acc2)", fontFamily: "'Oswald'", letterSpacing: .5, whiteSpace: "nowrap", position: "sticky", top: 0 }
+      h("thead", null, h("tr", null, cols.map((c, j) => h("th", {
+        key: j,
+        style: {
+          textAlign: "left", padding: "10px 10px", background: "var(--panel2)", color: "var(--acc2)",
+          fontFamily: "'Oswald'", letterSpacing: .5, whiteSpace: "nowrap", position: "sticky", top: 0,
+          zIndex: j < nf ? 4 : 1,
+          ...(fija(j, "var(--panel2)") || {})
+        }
       }, c)))),
       h("tbody", null,
         filas.length === 0 ? h("tr", null, h("td", { colSpan: cols.length, style: { padding: 24, textAlign: "center", color: "var(--txt-dim)" } }, vacio || "Sin registros.")) : null,
         filas.map((f, i) => h("tr", { key: i, style: { background: i % 2 ? "transparent" : "var(--panel2)" } },
-          f.map((c, j) => h("td", { key: j, style: { padding: "9px 10px", borderBottom: "1px solid var(--border)", verticalAlign: "top" } }, c)))))));
+          f.map((c, j) => h("td", {
+            key: j,
+            style: {
+              padding: "9px 10px", borderBottom: "1px solid var(--border)", verticalAlign: "top",
+              zIndex: j < nf ? 2 : undefined,
+              ...(fija(j, i % 2 ? "var(--bg2)" : "var(--panel2)") || {})
+            }
+          }, c)))))));
 }
 function Administracion({ legajos, usuarios, accesos, recorrido, avisos, onAbrir, onCompletar, avisar, onImportarPlanilla, acargo, onGuardarACargo, puedeEditarACargo, onGuardarUsuarios, onSepararNombres, onFechaAlta }) {
   const [sub, setSub] = useState("");
