@@ -310,7 +310,7 @@ const h = React.createElement;
 const APP_NOMBRE = "LEGAJO DIGITAL DEL ASPIRANTE";
 const APP_CORTO = "Legajo Digital";
 const APP_SUB = "del Aspirante";
-const APP_VER = "5.5";
+const APP_VER = "5.6";
 
 // ══════════════════════════════════════════════════════════════
 //  CONEXIÓN A SUPABASE
@@ -910,7 +910,7 @@ const DB = {
     let usuarios = (ru.data || []).map(u => ({
       id: u.id, grado: u.grado || "", nombre: u.nombre, usuario: u.usuario,
       hash: u.hash, rol: u.rol, secciones: u.secciones || [],
-      puedeCargar: u.rol === "supervisor" ? false : !sinCarga.includes(u.id)
+      puedeCargar: u.rol === "admin" ? true : !sinCarga.includes(u.id)
     }));
     if (!usuarios.length) {
       usuarios = USUARIOS_SEMILLA;
@@ -952,7 +952,7 @@ const DB = {
     if (error) throw error;
     // La autorización para cargar viaja aparte, en la tabla de configuración
     try {
-      const sinCarga = lista.filter(u => u.rol === "instructor" && u.puedeCargar === false).map(u => u.id);
+      const sinCarga = lista.filter(u => u.rol !== "admin" && u.puedeCargar === false).map(u => u.id);
       await _withTimeout(sb.from(TABLAS.config).upsert({ key: CLAVE_SIN_CARGA, value: sinCarga }, { onConflict: "key" }));
     } catch (e) {}
     try {
@@ -1117,7 +1117,7 @@ async function perfilDe(usuario) {
     usuario: data.usuario,
     rol: data.rol,
     secciones: data.secciones || [],
-    puedeCargar: data.rol === "supervisor" ? false : autorizado
+    puedeCargar: data.rol === "admin" ? true : autorizado
   };
 }
 async function sesionActiva() {
@@ -1165,21 +1165,45 @@ const publicarAviso = (u, msg) => apilar("avisos", { usuario: u.usuario, nombre:
 
 // ====== PERMISOS ======
 // Administradoras: ven, editan y borran todo.
-// Instructores: ven todo, pero sólo cargan y editan legajos de las secciones a su cargo. Nadie más borra.
+// Supervisores Operacionales: cargan y editan en TODA la nómina, sin secciones propias.
+// Instructores: ven todo, pero sólo cargan y editan legajos de las secciones a su cargo.
+// Excepción para todos: los certificados médicos y la baja / desistimiento /
+// desafectación se pueden cargar en cualquier sección, porque el aspirante
+// presenta el certificado o deja de venir ante quien esté de turno.
+// Nadie más que la administradora borra legajos.
 const esAdmin = u => !!u && u.rol === "admin";
-// Autorización a cargar: una administradora se la puede quitar a cualquier
-// instructor desde Usuarios. Sin ella el instructor entra, ve y descarga todo,
-// pero no carga ni edita ningún legajo.
-const puedeCargarDatos = u => !!u && (u.rol === "admin" || (u.rol === "instructor" && u.puedeCargar !== false));
+const esSupervisor = u => !!u && u.rol === "supervisor";
+// Autorización a cargar: una administradora se la puede quitar a cualquiera
+// desde Usuarios. Sin ella el usuario entra, ve y descarga todo, pero no
+// carga ni edita nada.
+const puedeCargarDatos = u => !!u && (u.rol === "admin" || u.puedeCargar !== false);
 function puedeEditarLegajo(u, l) {
   if (esAdmin(u)) return true;
   if (!u || !l) return false;
-  if (u.rol === "supervisor") return false; // sólo consulta y descarga
-  if (u.puedeCargar === false) return false; // autorización dada de baja
+  if (!puedeCargarDatos(u)) return false;     // autorización dada de baja
+  if (esSupervisor(u)) return true;           // supervisión operacional: todas las secciones
   const mias = u.secciones || [];
   if (!mias.length) return false;
   if (!l.seccion) return false;
   return mias.includes(l.seccion);
+}
+// Lo que cualquier usuario autorizado puede tocar en CUALQUIER sección
+const puedeCargarCertificados = (u, l) => puedeEditarLegajo(u, l) || puedeCargarDatos(u);
+const puedeRegistrarBaja = (u, l) => puedeEditarLegajo(u, l) || puedeCargarDatos(u);
+// Campos que viajan con esa excepción: si un guardado sólo toca estos, entra
+// aunque el legajo sea de otra sección.
+const CAMPOS_TODA_SECCION = ["certificados", "certMedico", "estado", "motivoEstado",
+  "fechaEstado", "fechaBaja", "fechaDesistio", "fechaDesafectado", "historial", "actualizado"];
+function soloCambiosDeTodaSeccion(viejo, nuevo) {
+  if (!viejo || !nuevo) return false;
+  const claves = new Set([...Object.keys(viejo), ...Object.keys(nuevo)]);
+  for (const k of claves) {
+    if (CAMPOS_TODA_SECCION.includes(k)) continue;
+    const a = viejo[k] === undefined ? null : viejo[k];
+    const b = nuevo[k] === undefined ? null : nuevo[k];
+    if (JSON.stringify(a) !== JSON.stringify(b)) return false;
+  }
+  return true;
 }
 
 // ====== INSTRUCTORES A CARGO DE CADA SECCIÓN ======
@@ -2151,6 +2175,8 @@ function Detalle({
   onBack,
   rol,
   puede,
+  puedeCert,
+  puedeBaja,
   toast,
   autor
 }) {
@@ -2159,6 +2185,10 @@ function Detalle({
   const [busy, setBusy] = useState(false);
   const [pdfBusy, setPdfBusy] = useState(false);
   const editable = puede !== undefined ? puede : rol === "admin";
+  // Certificados médicos y bajas: se pueden cargar en cualquier sección
+  const certOk = editable || !!puedeCert;
+  const bajaOk = editable || !!puedeBaja;
+  const algoEditable = editable || certOk || bajaOk;
   const up = (k, v) => setL(p => ({
     ...p,
     [k]: v
@@ -2260,7 +2290,7 @@ function Detalle({
       width: 16,
       height: 16
     }
-  }), pdfBusy ? "Armando…" : "PDF"), editable && /*#__PURE__*/React.createElement("button", {
+  }), pdfBusy ? "Armando…" : "PDF"), algoEditable && /*#__PURE__*/React.createElement("button", {
     className: "btn btn-gold",
     disabled: busy,
     onClick: guardar
@@ -2376,6 +2406,8 @@ function Detalle({
     autor: autor,
     toast: toast,
     onGuardar: guardarRapido,
+    certOk: certOk,
+    bajaOk: bajaOk,
     l: l,
     up: up,
     upObj: upObj,
@@ -2443,8 +2475,13 @@ function TabPersonales({
   editable,
   autor,
   toast,
-  onGuardar
+  onGuardar,
+  certOk,
+  bajaOk
 }) {
+  // La baja / desistimiento / desafectación se registra en cualquier sección
+  const puedeBajaAca = editable || !!bajaOk;
+  const cBaja = k => ({ val: l[k], set: v => up(k, v), editable: puedeBajaAca });
   const c = k => ({
     val: l[k],
     set: v => up(k, v),
@@ -2464,11 +2501,11 @@ function TabPersonales({
     opt: LISTADOS
   }), /*#__PURE__*/React.createElement(Campo, {
     l: "Estado",
-    ...c("estado"),
+    ...cBaja("estado"),
     opt: ESTADOS_ASP
   }), /*#__PURE__*/React.createElement(Campo, {
     l: "Motivo (si desistió o baja)",
-    ...c("motivoEstado"),
+    ...cBaja("motivoEstado"),
     ancho: 300
   }), /*#__PURE__*/React.createElement(Campo, {
     l: "Ciudad / Localidad de origen",
@@ -2492,15 +2529,15 @@ function TabPersonales({
     type: "date"
   }), h(Campo, {
     l: "Fecha de baja",
-    ...c("fechaBaja"),
+    ...cBaja("fechaBaja"),
     type: "date"
   }), h(Campo, {
     l: "Fecha de desistimiento",
-    ...c("fechaDesistio"),
+    ...cBaja("fechaDesistio"),
     type: "date"
   }), h(Campo, {
     l: "Fecha de desafectación",
-    ...c("fechaDesafectado"),
+    ...cBaja("fechaDesafectado"),
     type: "date"
   })), h("div", { className: "subsec" }, "Salud a informar y certificado médico"), h("div", {
     style: { display: "flex", flexWrap: "wrap", gap: 14 }
@@ -2539,7 +2576,7 @@ function TabPersonales({
     type: "area",
     full: true
   })), h(CertificadosMedicos, {
-    l, editable, autor,
+    l, editable: editable || !!certOk, autor,
     onGuardar: onGuardar || (async () => {}),
     toast: toast || (() => {})
   }), /*#__PURE__*/React.createElement("div", {
@@ -4737,7 +4774,7 @@ function UsuariosTab({ data, setData, toast }) {
       usuario: d.usuario,
       rol,
       secciones: rol === "supervisor" ? [] : (d.secciones || []),
-      puedeCargar: rol === "admin" ? true : rol === "supervisor" ? false : d.puedeCargar !== false
+      puedeCargar: rol === "admin" ? true : d.puedeCargar !== false
     };
     base.hash = d.password ? await hashPass(d.password) : existente ? existente.hash : "";
     if (sb && !existente && d.password && !saltearAuth) {
@@ -4818,7 +4855,7 @@ function UsuariosTab({ data, setData, toast }) {
       setData({ ...data, usuarios: nu });
       toast(u.puedeCargar !== false
         ? conGrado(u) + " queda sólo con permiso de consultar y descargar"
-        : conGrado(u) + " ya puede cargar y editar los legajos de sus secciones", "ok");
+        : conGrado(u) + (esSupervisor(u) ? " ya puede cargar y editar en todas las secciones" : " ya puede cargar y editar los legajos de sus secciones, más los certificados y bajas de toda la nómina"), "ok");
     } catch (e) {
       toast("Error: " + e.message, "err");
     }
@@ -4850,7 +4887,7 @@ function UsuariosTab({ data, setData, toast }) {
         id: uid(), grado: f.grado, nombre: f.nombre, usuario,
         rol: f.rol || "instructor",
         secciones: f.rol === "supervisor" ? [] : (f.secciones || []),
-        puedeCargar: (f.rol || "instructor") === "instructor",
+        puedeCargar: true,
         hash: await hashPass(clavePlantel)
       });
       creados++;
@@ -4876,7 +4913,7 @@ function UsuariosTab({ data, setData, toast }) {
   const filasUsr = () => usuarios.map(u => [
     u.grado || "", u.nombre || "", u.usuario || "", ROLES[u.rol] || u.rol || "",
     (u.secciones || []).join(" · ") || "—",
-    u.rol === "admin" ? "Total" : u.rol === "supervisor" ? "No (sólo consulta)" : (u.puedeCargar !== false ? "Sí" : "No (sólo consulta)")
+    u.rol === "admin" ? "Total" : u.puedeCargar === false ? "No (sólo consulta)" : (u.rol === "supervisor" ? "Sí · todas las secciones" : "Sí · sus secciones + certificados y bajas de toda la nómina")
   ]);
   const exportarXls = () => exportarHojas("LegajoDigital_Usuarios", [["Usuarios", COLS_USR, filasUsr()]]);
   const exportarPdf = () => exportarPDFHojas("LegajoDigital_Usuarios", "Usuarios del sistema",
@@ -4897,14 +4934,15 @@ function UsuariosTab({ data, setData, toast }) {
     h("div", { style: { marginTop: 6, display: "flex", gap: 5, flexWrap: "wrap" } },
       u.rol === "admin"
         ? chip("Permiso total", "var(--acc2)", "rgba(143,212,0,.15)")
-        : u.rol === "supervisor"
+        : u.puedeCargar === false
           ? chip("👁️ Sólo consulta y descarga", "var(--info)", "rgba(var(--info-rgb),.16)")
-          : (u.puedeCargar !== false
-              ? chip("✅ Autorizado a cargar", "var(--green)", "rgba(55,214,122,.15)")
-              : chip("🚫 Sin autorización para cargar", "var(--red)", "rgba(255,90,82,.15)")),
+          : u.rol === "supervisor"
+            ? chip("🛡️ Carga en todas las secciones", "var(--acc2)", "rgba(143,212,0,.15)")
+            : chip("✅ Carga en sus secciones", "var(--green)", "rgba(55,214,122,.15)"),
+      u.rol !== "admin" && u.puedeCargar !== false ? chip("＋ Certificados y bajas de toda la nómina", "var(--gold2)", "rgba(255,200,60,.14)") : null,
       (u.secciones || []).length === 0 && u.rol === "instructor" ? chip("Sin sección asignada", "var(--amber)", "rgba(255,176,32,.15)") : null)),
     h("div", { style: { display: "flex", gap: 6, flexWrap: "wrap" } },
-      u.rol === "instructor" ? h("button", {
+      u.rol !== "admin" ? h("button", {
         className: "btn " + (u.puedeCargar !== false ? "btn-ghost" : "btn-lima"),
         style: { padding: "4px 10px", fontSize: 12.5 },
         title: u.puedeCargar !== false ? "Quitarle la autorización de cargar" : "Autorizarlo a cargar",
@@ -4964,7 +5002,7 @@ function UsuariosTab({ data, setData, toast }) {
         h("button", { className: "btn btn-ghost", onClick: exportarXls }, h(I.excel, { style: { width: 16, height: 16 } }), "Excel"),
         h("button", { className: "btn btn-coral", onClick: exportarPdf }, h(I.pdf, { style: { width: 16, height: 16 } }), "PDF"))),
     h("div", { style: { fontSize: 12, color: "var(--txt-dim)", marginBottom: 14, borderLeft: "3px solid var(--coral)", paddingLeft: 10, lineHeight: 1.5 } },
-      "Todo el personal tiene que estar cargado acá, pero no todos quedan autorizados a cargar: con \u201cQuitar permiso\u201d el instructor sigue entrando, viendo todas las pestañas y descargando, pero no puede modificar ningún legajo. Las contraseñas se guardan cifradas (SHA-256 con sal): nadie puede leerlas, ni siquiera desde el código de la app."),
+      "Todo el personal tiene que estar cargado acá. La administradora tiene permiso total; el Supervisor Operacional carga y edita en las cinco secciones; el instructor sólo en las secciones que tiene a cargo. Los certificados médicos y las bajas (desistimiento y desafectación incluidos) los puede cargar cualquiera autorizado, en cualquier sección. Con \u201cQuitar permiso\u201d la persona sigue entrando, viendo todo y descargando, pero no modifica nada. Las contraseñas se guardan cifradas (SHA-256 con sal): nadie puede leerlas, ni siquiera desde el código de la app."),
     panelPlantel,
     usuarios.map(tarjetaUsuario),
     !d ? h("button", { className: "btn btn-gold", style: { marginTop: 8 }, onClick: () => setD({ grado: "", nombre: "", usuario: "", password: "", rol: "instructor", secciones: [], puedeCargar: true }) },
@@ -4980,16 +5018,16 @@ function UsuariosTab({ data, setData, toast }) {
         "Acceso interno que usa la base: ",
         h("b", { style: { color: "var(--acc2)", userSelect: "all" } }, correoDe(d.usuario)),
         " — tiene que ser igual al de Supabase (Authentication → Users) si la cuenta ya estaba creada.") : null,
-      d.rol === "instructor" ? h("div", { style: { marginTop: 12, padding: "10px 12px", background: "var(--bg2)", borderRadius: 10, border: "1px solid var(--border)" } },
+      d.rol !== "admin" ? h("div", { style: { marginTop: 12, padding: "10px 12px", background: "var(--bg2)", borderRadius: 10, border: "1px solid var(--border)" } },
         h("label", { className: "lbl" }, "Autorización para cargar"),
         h("div", { style: { display: "flex", gap: 7, flexWrap: "wrap", marginTop: 4 } },
-          [[true, "✅ Puede cargar y editar"], [false, "👁️ Sólo consultar y descargar"]].map(([v, txt]) => h("button", {
+          [[true, d.rol === "supervisor" ? "✅ Carga en todas las secciones" : "✅ Puede cargar y editar"], [false, "👁️ Sólo consultar y descargar"]].map(([v, txt]) => h("button", {
             key: String(v),
             className: "pill-sec" + ((d.puedeCargar !== false) === v ? " on" : ""),
             onClick: () => setD({ ...d, puedeCargar: v })
           }, txt))),
         h("div", { style: { fontSize: 12, color: "var(--txt-dim)", marginTop: 6 } },
-          "Sin autorización el instructor entra igual y ve todo, pero no modifica ningún legajo. Se aplica en cuanto guardás y también cuando la persona vuelve a entrar.")) : null,
+          "Sin autorización la persona entra igual y ve todo, pero no modifica ningún legajo. Se aplica en cuanto guardás y también cuando vuelve a entrar. Con autorización, además de lo suyo, puede cargar los certificados médicos y registrar la baja de cualquier sección.")) : null,
       d.rol !== "supervisor" ? h("div", { style: { marginTop: 10 } },
         h("label", { className: "lbl" }, "Secciones a cargo"),
         h("div", { style: { display: "flex", gap: 7, flexWrap: "wrap" } },
@@ -5002,8 +5040,8 @@ function UsuariosTab({ data, setData, toast }) {
             }, puesta ? "✓ " + sec : sec);
           })),
         h("div", { style: { fontSize: 12, color: "var(--txt-dim)", marginTop: 6 } }, "Una persona puede tener más de una sección a cargo.")) :
-        h("div", { style: { marginTop: 10, fontSize: 12.5, color: "var(--txt-dim)", borderLeft: "3px solid var(--amber)", paddingLeft: 10 } },
-          "El Supervisor Operacional consulta y descarga todo el sistema, sin cargar ni modificar legajos."),
+        h("div", { style: { marginTop: 10, fontSize: 12.5, color: "var(--txt-dim)", borderLeft: "3px solid var(--acc2)", paddingLeft: 10, lineHeight: 1.5 } },
+          "El Supervisor Operacional carga y edita legajos de las cinco secciones, así que no se le asigna ninguna en particular."),
       h("div", { style: { display: "flex", gap: 8, marginTop: 14 } },
         h("button", {
           className: "btn btn-gold", disabled: guardando,
@@ -5706,15 +5744,21 @@ function PersonalACargo({ usuarios, acargo, onGuardar, onGuardarUsuarios, puedeE
     const sinUsuario = [];
     ALOJAMIENTOS.forEach(m => { nuevo[m] = []; });
     let nuevosUsuarios = [...(usuarios || [])];
+    let conRol = 0;
     PERSONAL_2DA.forEach(f => {
       const u = buscarEnUsuarios(usuarios, f);
       if (!u) { sinUsuario.push(f.nombre); return; }
-      // secciones a cargo tal como figuran en la planilla
+      // rol y secciones a cargo tal como figuran en la planilla
       const secs = f.rol === "supervisor" ? [] : (f.secciones || []);
+      const rolPlanilla = f.rol || "instructor";
       const iguales = (u.secciones || []).length === secs.length && secs.every(x => (u.secciones || []).includes(x));
-      if (!iguales) {
-        nuevosUsuarios = nuevosUsuarios.map(x => x.id === u.id ? { ...x, secciones: secs } : x);
-        conSeccion++;
+      const mismoRol = (u.rol || "instructor") === rolPlanilla || u.rol === "admin";
+      if (!iguales || !mismoRol) {
+        nuevosUsuarios = nuevosUsuarios.map(x => x.id === u.id
+          ? { ...x, secciones: secs, rol: x.rol === "admin" ? x.rol : rolPlanilla }
+          : x);
+        if (!iguales) conSeccion++;
+        if (!mismoRol) conRol++;
       }
       // gamela y módulos
       (f.modulos || []).forEach(m => {
@@ -5724,14 +5768,14 @@ function PersonalACargo({ usuarios, acargo, onGuardar, onGuardarUsuarios, puedeE
     });
     setOcupado(true);
     try {
-      if (conSeccion) await onGuardarUsuarios(nuevosUsuarios);
+      if (conSeccion || conRol) await onGuardarUsuarios(nuevosUsuarios);
       const ok = await onGuardar(nuevo);
       if (ok) {
         setMapa(nuevo);
         setEditMod("");
         setEditSec("");
         setSecIds({});
-        aviso(`Planilla aplicada: ${conSeccion} secci${conSeccion === 1 ? "ón actualizada" : "ones actualizadas"} y ${puestos} asignación${puestos === 1 ? "" : "es"} de gamela y módulos` +
+        aviso(`Planilla aplicada: ${conSeccion} secci${conSeccion === 1 ? "ón actualizada" : "ones actualizadas"}, ${conRol} rol${conRol === 1 ? "" : "es"} corregido${conRol === 1 ? "" : "s"} y ${puestos} asignación${puestos === 1 ? "" : "es"} de gamela y módulos` +
           (sinUsuario.length ? ` · faltan crear en Usuarios: ${sinUsuario.join(", ")}` : ""), sinUsuario.length ? "err" : "ok");
       }
     } catch (e) {
@@ -7333,13 +7377,15 @@ function App() {
         toast("No tenés autorización para cargar: podés consultar y descargar todo, pero no modificar legajos.", "err");
         return;
       }
-      const mias = user.secciones || [];
-      if (!l.seccion || !mias.includes(l.seccion)) {
-        toast(mias.length ? `Sólo podés cargar o editar legajos de ${mias.join(" y ")}.` : "No tenés secciones a cargo: no podés editar legajos.", "err");
-        return;
-      }
-      if (anterior && anterior.seccion && !mias.includes(anterior.seccion)) {
-        toast(`Ese legajo es de ${anterior.seccion} y no está a tu cargo.`, "err");
+      // ¿El legajo es de una sección a su cargo? (el supervisor operacional tiene todas)
+      const propio = puedeEditarLegajo(user, l) &&
+        (!anterior || !anterior.seccion || puedeEditarLegajo(user, anterior));
+      // Si no lo es, sólo pasan los certificados médicos y la baja
+      if (!propio && !soloCambiosDeTodaSeccion(anterior, l)) {
+        const mias = user.secciones || [];
+        toast(mias.length
+          ? `Ese legajo es de ${(anterior && anterior.seccion) || l.seccion || "otra sección"}: de las secciones que no tenés a cargo podés cargar certificados médicos y registrar la baja, el resto no.`
+          : "No tenés secciones a cargo: sólo podés cargar certificados médicos y registrar bajas.", "err");
         return;
       }
     }
@@ -7838,7 +7884,7 @@ function App() {
         className: "btn btn-coral",
         onClick: () => exportarPDFLegajos(filtrados, enBajas ? "Bajas, Desistieron y Desafectados" : (fSeccion || "Legajos activos"), "LegajoDigital_Legajos")
       }, h(I.pdf, { style: { width: 16, height: 16 } }), "PDF"),
-      !enBajas && puedeCargarDatos(user) && (esAdmin(user) || (user.secciones || []).length) ? h("button", {
+      !enBajas && puedeCargarDatos(user) && (esAdmin(user) || esSupervisor(user) || (user.secciones || []).length) ? h("button", {
         className: "btn btn-lima",
         onClick: () => {
           const mias = user.secciones || [];
@@ -7899,13 +7945,14 @@ function App() {
         className: "card",
         style: { padding: "11px 15px", borderLeft: "4px solid var(--amber)", fontSize: 13, color: "var(--txt-dim)", display: "flex", gap: 10, alignItems: "center" }
       }, h("span", { style: { fontSize: 17 } }, "👁️"),
-        h("span", null, "Sólo lectura. ",
-          user.rol === "supervisor" ? "Perfil de supervisión: podés consultar todos los legajos y descargar lo que necesites, pero no modificarlos."
-            : user.puedeCargar === false ? "Tu usuario está sin autorización para cargar: podés ver todas las pestañas y descargar lo que necesites, pero no modificar legajos."
-            : sel.seccion ? `${sel.seccion} no está a tu cargo, podés consultar el legajo pero no modificarlo.`
-            : "Este legajo todavía no tiene sección asignada; una administradora tiene que asignarla."))) : null,
+        h("span", null,
+          user.puedeCargar === false ? "Sólo lectura. Tu usuario está sin autorización para cargar: podés ver todas las pestañas y descargar lo que necesites, pero no modificar legajos."
+            : sel.seccion ? `${sel.seccion} no está a tu cargo: podés cargar los certificados médicos y registrar la baja, desistimiento o desafectación, y el resto del legajo lo ves pero no lo modificás.`
+            : "Este legajo todavía no tiene sección asignada; una administradora tiene que asignarla. Igual podés cargarle certificados médicos y registrar la baja."))) : null,
     h(Detalle, {
       legajo: sel, rol: user.rol, puede: puedeEditarLegajo(user, sel), toast,
+      puedeCert: puedeCargarCertificados(user, sel),
+      puedeBaja: puedeRegistrarBaja(user, sel),
       autor: comoLlamar(user),
       onBack: () => setSel(null),
       onSave: guardarLegajo
