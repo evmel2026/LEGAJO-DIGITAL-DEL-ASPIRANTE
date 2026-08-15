@@ -310,7 +310,7 @@ const h = React.createElement;
 const APP_NOMBRE = "LEGAJO DIGITAL DEL ASPIRANTE";
 const APP_CORTO = "Legajo Digital";
 const APP_SUB = "del Aspirante";
-const APP_VER = "5.6";
+const APP_VER = "5.7";
 
 // ══════════════════════════════════════════════════════════════
 //  CONEXIÓN A SUPABASE
@@ -335,6 +335,10 @@ const CLAVE_ACARGO = "alojamiento_acargo";   // quién está a cargo de cada mó
 // Quiénes NO están autorizados a cargar. Va en lda_config y no en lda_usuarios
 // porque esa tabla tiene las columnas fijas y este dato se perdía al guardar.
 const CLAVE_SIN_CARGA = "usuarios_sin_autorizacion";
+// Novedades de las administradoras: si está en true (por defecto), lo que cargan
+// Mely y Eliana sólo lo ve la campanita de las administradoras. El resto del
+// equipo no se entera de esos movimientos.
+const CLAVE_AVISOS_ADMIN = "avisos_solo_administradoras";
 const LIMITE_ARCHIVO_MB = 12;   // tope por archivo subido
 const LADO_MAX_FOTO = 1400;     // las fotos se achican antes de subir
 const CALIDAD_FOTO = 0.72;
@@ -968,6 +972,19 @@ const DB = {
     const { data, error } = await _withTimeout(sb.from(TABLAS[clave]).select("*").order("ts", { ascending: false }).limit(max || 200));
     if (error) throw error;
     return (data || []).slice().reverse();
+  },
+  // Borra avisos puntuales de la campanita (los saca de la base: no los ve nadie)
+  async borrarAvisos(ids) {
+    const lista = (ids || []).filter(Boolean);
+    if (!lista.length) return;
+    if (!sb) {
+      const cfg = lsGet(LS_CFG, {});
+      cfg.avisos = (cfg.avisos || []).filter(a => !lista.includes(a.id));
+      lsSet(LS_CFG, cfg);
+      return;
+    }
+    const { error } = await _withTimeout(sb.from(TABLAS.avisos).delete().in("id", lista));
+    if (error) throw error;
   },
   async limpiarBitacora(clave) {
     if (!sb) {
@@ -5351,7 +5368,8 @@ function MenuConfig(props) {
 //  ESTRUCTURA GENERAL
 // ══════════════════════════════════════════════════════════════
 function Shell(props) {
-  const { user, onLogout, children, toast, vista, setVista, rol, notifs, tema, onTema, onLimpiarNotifs, onLeerNotifs } = props;
+  const { user, onLogout, children, toast, vista, setVista, rol, notifs, tema, onTema, onLimpiarNotifs, onLeerNotifs,
+    onBorrarAviso, onBorrarAvisosDeAdmin, avisosSoloAdmin, onAvisosSoloAdmin, cantAvisosAdmin } = props;
   const [openN, setOpenN] = useState(false);
   const [openC, setOpenC] = useState(false);
   const [openL, setOpenL] = useState(false);
@@ -5416,6 +5434,7 @@ function Shell(props) {
             const todas = (notifs || []).slice().reverse();
             const nuevas = todas.filter(n => !n.archivada);
             const enPantalla = verHistorial ? todas : nuevas;
+            const esAdm = rol === "admin";
             return h("div", { className: "pop", onClick: e => e.stopPropagation() },
               h("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 8px 8px", borderBottom: "1px solid var(--border)" } },
                 h("b", { style: { fontSize: 13 } }, verHistorial ? "Historial de novedades" : "Novedades"),
@@ -5425,13 +5444,47 @@ function Shell(props) {
                   title: "Despeja la campanita. No se borra nada: queda en el historial.",
                   onClick: onLimpiarNotifs
                 }, "Limpiar") : null),
+              esAdm ? h("div", {
+                style: { padding: "8px", margin: "8px 0", borderRadius: 10, background: "var(--panel2)", border: "1px solid var(--border)", fontSize: 11.5, color: "var(--txt-dim)" }
+              },
+                h("label", { style: { display: "flex", gap: 8, alignItems: "flex-start", cursor: "pointer", color: "var(--txt)" } },
+                  h("input", {
+                    type: "checkbox",
+                    checked: avisosSoloAdmin !== false,
+                    onChange: e => onAvisosSoloAdmin && onAvisosSoloAdmin(e.target.checked),
+                    style: { marginTop: 2 }
+                  }),
+                  h("span", null,
+                    h("b", { style: { fontSize: 12 } }, "Lo que cargan las administradoras, sólo para ustedes"),
+                    h("div", { style: { color: "var(--txt-dim)", marginTop: 2, fontWeight: 400 } },
+                      "Con esto tildado, las novedades que generan las administradoras no aparecen en la campanita del resto del equipo."))),
+                h("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginTop: 8 } },
+                  h("span", null, (cantAvisosAdmin || 0) === 0 ? "No hay novedades de administradoras guardadas"
+                    : `${cantAvisosAdmin} ${cantAvisosAdmin === 1 ? "novedad guardada" : "novedades guardadas"} de administradoras`),
+                  (cantAvisosAdmin || 0) > 0 ? h("button", {
+                    className: "btn btn-ghost",
+                    style: { padding: "3px 8px", fontSize: 11, color: "var(--coral)", flexShrink: 0, whiteSpace: "nowrap" },
+                    title: "Las borra de la base: no quedan ni en el historial de nadie.",
+                    onClick: onBorrarAvisosDeAdmin
+                  }, "🗑️ Eliminarlas") : null)) : null,
               enPantalla.length === 0 ? h("div", { style: { padding: 16, fontSize: 12, color: "var(--txt-dim)", textAlign: "center" } },
                 verHistorial ? "Todavía no hay novedades registradas." : "Sin novedades nuevas.") : null,
               enPantalla.map(n => h("div", {
                 key: n.id,
                 style: { padding: "8px 8px", borderBottom: "1px solid var(--border)", fontSize: 12.5, background: n.leida ? "transparent" : "var(--panel2)", borderRadius: 8, opacity: n.archivada ? .6 : 1 }
-              }, h("div", null, n.msg),
-                h("div", { style: { color: "var(--txt-dim)", fontSize: 11, marginTop: 2 } }, n.hora || n.fecha || ""))),
+              }, h("div", { style: { display: "flex", gap: 8, alignItems: "flex-start" } },
+                  h("div", { style: { flex: 1, minWidth: 0 } }, n.msg),
+                  esAdm ? h("button", {
+                    className: "btn btn-ghost",
+                    style: { padding: "0 6px", fontSize: 13, lineHeight: 1.4, color: "var(--txt-dim)", flexShrink: 0 },
+                    title: "Eliminar esta novedad para todos",
+                    onClick: () => onBorrarAviso && onBorrarAviso(n.id)
+                  }, "✕") : null),
+                h("div", { style: { color: "var(--txt-dim)", fontSize: 11, marginTop: 2, display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" } },
+                  h("span", null, n.hora || n.fecha || ""),
+                  n.deAdmin && avisosSoloAdmin !== false ? h("span", {
+                    style: { fontSize: 10, padding: "1px 6px", borderRadius: 999, background: "rgba(var(--acc-rgb),.18)", color: "var(--acc2)" }
+                  }, "🔒 Sólo administradoras") : null))),
               todas.length > 0 ? h("button", {
                 className: "btn btn-ghost",
                 style: { width: "100%", justifyContent: "center", marginTop: 8, fontSize: 11.5, padding: "6px" },
@@ -7205,6 +7258,8 @@ function App() {
   const [recorrido, setRecorrido] = useState([]);
   const [ultimaLectura, setUltimaLectura] = useState(() => lsGet("lda_leidos", ""));
   const [ocultarHasta, setOcultarHasta] = useState(() => lsGet("lda_ocultos", ""));
+  // Novedades de las administradoras reservadas para las administradoras
+  const [avisosSoloAdmin, setAvisosSoloAdmin] = useState(true);
   const [confirmar, setConfirmar] = useState(null);
   const [acargo, setACargo] = useState({});
   const [refresco, setRefresco] = useState(0);
@@ -7258,6 +7313,10 @@ function App() {
       try {
         const ac = await DB.get(CLAVE_ACARGO);
         setACargo(ac && typeof ac === "object" ? ac : {});
+      } catch (e) {}
+      try {
+        const priv = await DB.get(CLAVE_AVISOS_ADMIN);
+        setAvisosSoloAdmin(priv === undefined || priv === null ? true : priv !== false);
       } catch (e) {}
       const vistas = lsGet("lda_alertas", []);
       const nuevas = alertasVencimiento(d.legajos || []).filter(a => !vistas.includes(a.id));
@@ -7319,13 +7378,71 @@ function App() {
     if (user) registrarPaso(user, "Abrió " + vista, "");
   }, [vista, user]);
 
-  const notifs = useMemo(() => (avisos || []).map(a => ({
-    id: a.id,
-    msg: a.msg,
-    hora: a.fecha,
-    leida: !!ultimaLectura && a.ts <= ultimaLectura,
-    archivada: !!ocultarHasta && a.ts <= ocultarHasta
-  })), [avisos, ultimaLectura, ocultarHasta]);
+  // ¿Quién escribió el aviso? Los que publica una administradora pueden quedar
+  // reservados para las administradoras: lo que carga Mely o Eliana no tiene por
+  // qué llegarle al resto del equipo. No hace falta tocar la tabla lda_avisos:
+  // se resuelve mirando el rol del autor en lda_usuarios.
+  const esAvisoDeAdmin = useCallback(a => {
+    if (!a || !a.usuario || a.usuario === "sistema") return false;
+    const u = (data.usuarios || []).find(x => norm(x.usuario) === norm(a.usuario));
+    return !!u && u.rol === "admin";
+  }, [data.usuarios]);
+
+  const soyAdmin = esAdmin(user);
+
+  const notifs = useMemo(() => (avisos || [])
+    .map(a => ({
+      id: a.id,
+      msg: a.msg,
+      hora: a.fecha,
+      deAdmin: esAvisoDeAdmin(a),
+      leida: !!ultimaLectura && a.ts <= ultimaLectura,
+      archivada: !!ocultarHasta && a.ts <= ocultarHasta
+    }))
+    .filter(n => !(n.deAdmin && avisosSoloAdmin && !soyAdmin)),
+    [avisos, ultimaLectura, ocultarHasta, esAvisoDeAdmin, avisosSoloAdmin, soyAdmin]);
+
+  const avisosDeAdmin = useMemo(() => (avisos || []).filter(esAvisoDeAdmin), [avisos, esAvisoDeAdmin]);
+
+  // Eliminar de verdad: se van de la base, no quedan ni en el historial de nadie
+  const borrarAvisos = async ids => {
+    const lista = (ids || []).filter(Boolean);
+    if (!lista.length) return;
+    try {
+      await DB.borrarAvisos(lista);
+      setAvisos(av => (av || []).filter(a => !lista.includes(a.id)));
+      toast(lista.length === 1 ? "Novedad eliminada" : `${lista.length} novedades eliminadas`, "ok");
+    } catch (e) {
+      toast("No se pudieron eliminar: " + (e.message || e), "err");
+    }
+  };
+
+  const borrarAvisosDeAdmin = () => {
+    const ids = avisosDeAdmin.map(a => a.id);
+    if (!ids.length) {
+      toast("No hay novedades de las administradoras para eliminar", "ok");
+      return;
+    }
+    setConfirmar({
+      titulo: "Eliminar las novedades de las administradoras",
+      texto: `Se borran ${ids.length} ${ids.length === 1 ? "novedad" : "novedades"} de la campanita, en todos los usuarios y para siempre. Los legajos y el historial de cada ficha no se tocan.`,
+      textoOk: "Sí, eliminarlas",
+      onOk: () => {
+        setConfirmar(null);
+        borrarAvisos(ids);
+      }
+    });
+  };
+
+  const cambiarAvisosSoloAdmin = async v => {
+    setAvisosSoloAdmin(v);
+    try {
+      await DB.set(CLAVE_AVISOS_ADMIN, v);
+      toast(v ? "Lo que cargan las administradoras queda sólo para ustedes" : "Las novedades de las administradoras las ve todo el equipo", "ok");
+    } catch (e) {
+      toast("No se pudo guardar la preferencia: " + (e.message || e), "err");
+    }
+  };
 
   const marcarLeidas = () => {
     const t = new Date().toISOString();
@@ -7929,6 +8046,11 @@ function App() {
     onPaleta: cambiarPaleta,
     onLimpiarNotifs: archivarAvisos,
     onLeerNotifs: marcarLeidas,
+    onBorrarAviso: id => borrarAvisos([id]),
+    onBorrarAvisosDeAdmin: borrarAvisosDeAdmin,
+    avisosSoloAdmin,
+    onAvisosSoloAdmin: cambiarAvisosSoloAdmin,
+    cantAvisosAdmin: avisosDeAdmin.length,
     avisar: toast,
     usuarios: data.usuarios,
     guardarUsuarios,
