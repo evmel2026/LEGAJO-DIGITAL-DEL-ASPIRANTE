@@ -310,7 +310,7 @@ const h = React.createElement;
 const APP_NOMBRE = "LEGAJO DIGITAL DEL ASPIRANTE";
 const APP_CORTO = "Legajo Digital";
 const APP_SUB = "del Aspirante";
-const APP_VER = "5.9";
+const APP_VER = "6.0";
 
 // ══════════════════════════════════════════════════════════════
 //  CONEXIÓN A SUPABASE
@@ -6014,6 +6014,10 @@ function PlanillaDCF({ legajos, user, guardados, onGuardarMes, onAbrir }) {
   const [soloActivos, setSoloActivos] = useState(false);
   const [verGuardado, setVerGuardado] = useState(false);
   const [guardando, setGuardando] = useState(false);
+  // Con 21 columnas la tabla no entra en ninguna pantalla: se puede correr al
+  // costado, o pasar a "Fichas" y ver la planilla completa de cada aspirante,
+  // un dato abajo del otro, sin cortar nada.
+  const [modo, setModo] = useState("tabla");
 
   const guardado = (guardados || {})[mes];
   const esActual = mes === mesActual;
@@ -6049,14 +6053,48 @@ function PlanillaDCF({ legajos, user, guardados, onGuardarMes, onAbrir }) {
     setVerGuardado(true);
   };
 
-  const cont = { maxWidth: 1360, margin: "0 auto", padding: "0 16px 60px" };
-  // Hay columnas con mucho texto (condiciones médicas, motivos): en pantalla
-  // se recortan y el texto completo queda en el globito. En el Excel va entero.
+  const cont = { maxWidth: 1700, margin: "0 auto", padding: "0 16px 60px" };
+  // En la tabla las celdas muy largas se recortan y el texto completo queda en
+  // el globito; en las fichas y en el Excel va siempre entero.
   const celda = (v, j, f) => {
     if (j === 1 && f.legajo && onAbrir) return btnNombre(f.legajo, onAbrir);
     const s = v === "" || v === null || v === undefined ? "—" : String(v);
     return s.length > 44 ? h("span", { title: s }, s.slice(0, 43) + "…") : s;
   };
+  const txt = v => v === "" || v === null || v === undefined ? "—" : String(v);
+
+  const botonModo = (k, et, ico) => h("button", {
+    className: "btn " + (modo === k ? "" : "btn-ghost"),
+    style: { padding: "6px 14px", fontSize: 13 },
+    onClick: () => setModo(k)
+  }, ico + " " + et);
+
+  // ── Una ficha por aspirante, con las 21 columnas de la planilla ─────────
+  const ficha = (f, n) => h("div", {
+    key: n,
+    className: "card",
+    style: { padding: 14, background: "var(--panel2)" }
+  },
+    h("div", {
+      style: {
+        display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap",
+        borderBottom: "1px solid var(--border)", paddingBottom: 9, marginBottom: 10
+      }
+    },
+      h("span", { style: { fontFamily: "'Oswald'", fontSize: 20, color: "var(--acc2)" } }, f.celdas[0]),
+      h("span", { style: { fontWeight: 700, fontSize: 15.5, flex: 1, minWidth: 0 } },
+        f.legajo && onAbrir ? btnNombre(f.legajo, onAbrir) : txt(f.celdas[1])),
+      chipEstado(f.celdas[16])),
+    h("div", {
+      style: { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(230px,100%),1fr))", gap: "9px 18px" }
+    }, COLS_DCF.map((c, k) => k === 0 || k === 1 || k === 16 ? null : h("div", { key: k },
+      h("div", {
+        style: {
+          fontSize: 10.5, color: "var(--txt-dim)", textTransform: "uppercase",
+          letterSpacing: .5, marginBottom: 2
+        }
+      }, c),
+      h("div", { style: { fontSize: 13.5, lineHeight: 1.45, wordBreak: "break-word" } }, txt(f.celdas[k]))))));
 
   return h("div", { className: "fade", style: cont },
     h("h2", { style: { fontSize: 26, color: "var(--acc2)", margin: "22px 0 4px" } }, "Estadísticas DCFyCCCO"),
@@ -6107,18 +6145,38 @@ function PlanillaDCF({ legajos, user, guardados, onGuardarMes, onAbrir }) {
         onClick: () => setVerGuardado(v => !v)
       }, verGuardado ? "Ver los datos de hoy" : "Ver lo que se guardó") : null) : null,
 
-    h("div", { style: { fontSize: 13, color: "var(--txt-dim)", marginBottom: 12 } },
-      `${filas.length} aspirante${filas.length === 1 ? "" : "s"}`,
-      mostrarGuardado ? " · planilla cerrada, no se modifica" : " · datos en vivo desde los legajos",
-      nq ? ` · filtrando "${q}"` : ""),
+    h("div", {
+      style: { display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 12 }
+    }, botonModo("tabla", "Tabla", "▦"), botonModo("fichas", "Fichas", "🗂️"),
+      h("span", { style: { fontSize: 13, color: "var(--txt-dim)", marginLeft: 6 } },
+        `${filas.length} aspirante${filas.length === 1 ? "" : "s"}`,
+        mostrarGuardado ? " · planilla cerrada, no se modifica" : " · datos en vivo desde los legajos",
+        nq ? ` · filtrando "${q}"` : "")),
 
-    h("div", { className: "card", style: { padding: 4 } },
-      h(Tabla, {
-        cols: COLS_DCF,
-        fijas: 2,
-        filas: filas.map(f => f.celdas.map((v, j) => celda(v, j, f))),
-        vacio: "Todavía no hay aspirantes cargados."
-      })));
+    modo === "tabla" ? h("div", null,
+      h("div", {
+        style: {
+          fontSize: 12.5, color: "var(--txt-dim)", marginBottom: 8,
+          display: "flex", alignItems: "center", gap: 7, lineHeight: 1.5
+        }
+      }, h("span", { style: { color: "var(--acc2)", fontSize: 15 } }, "↔"),
+        `La planilla tiene ${COLS_DCF.length} columnas y no entran todas en la pantalla: deslizá la tabla hacia el costado para seguir viéndolas. El N° y el apellido quedan fijos. Si preferís verlo todo junto, tocá “Fichas”.`),
+      h("div", { className: "card", style: { padding: 4 } },
+        h(Tabla, {
+          cols: COLS_DCF,
+          fijas: 2,
+          filas: filas.map(f => f.celdas.map((v, j) => celda(v, j, f))),
+          vacio: "Todavía no hay aspirantes cargados."
+        }))) : h("div", null,
+      h("div", { style: { fontSize: 12.5, color: "var(--txt-dim)", marginBottom: 10, lineHeight: 1.5 } },
+        `Los ${COLS_DCF.length} datos de la planilla de cada aspirante, completos y sin recortar. Es la misma información que se descarga en el Excel.`),
+      filas.length === 0 ? h("div", {
+        className: "card",
+        style: { padding: 24, textAlign: "center", color: "var(--txt-dim)" }
+      }, "Todavía no hay aspirantes cargados.") : h("div", {
+        style: { display: "grid", gap: 12 }
+      }, filas.map((f, n) => ficha(f, n)))));
+
 }
 
 // \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
