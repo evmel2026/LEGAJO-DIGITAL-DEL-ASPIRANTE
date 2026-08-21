@@ -57,7 +57,7 @@
   --shadow:0 8px 24px rgba(143,212,0,.15);
 }
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%}
+html,body{min-height:100%}
 body{font-family:'Barlow',sans-serif;background:var(--bg);color:var(--txt);-webkit-font-smoothing:antialiased;transition:background .3s,color .3s;}
 #root{min-height:100vh}
 h1,h2,h3,h4,.font-display{font-family:'Oswald',sans-serif;letter-spacing:.5px}
@@ -217,45 +217,50 @@ body{background-image:radial-gradient(58vw 44vw at 6% -6%, rgba(var(--acc-rgb),.
 .bordo{color:var(--bordo)}
 
 /* ══════════ INGRESO QUE ENTRA COMPLETO EN CUALQUIER PANTALLA ══════════ */
-.login-wrap{min-height:100vh;min-height:100dvh;display:flex;align-items:center;justify-content:center;padding:clamp(8px,2vh,20px);position:relative}
-.login-card{width:100%;max-width:352px;text-align:center;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
-  padding:clamp(18px,3.4vh,34px) clamp(18px,4.5vw,28px);
-  display:flex;flex-direction:column;justify-content:center;
-  min-height:min(96dvh,700px);max-height:96dvh;overflow-y:auto}
-.login-card>*{flex-shrink:0}
-.login-escudo{width:clamp(38px,7.2vh,62px)}
-.login-tit{font-size:clamp(19px,3.4vh,27px)}
-.login-sub{font-size:clamp(9px,1.5vh,12.5px)}
-.login-barra{height:2px;width:54px;border-radius:2px;margin:clamp(6px,1.4vh,12px) auto clamp(8px,1.6vh,16px);background:linear-gradient(90deg,var(--acc2),var(--coral))}
-.login-frase{font-size:clamp(12px,1.85vh,14.5px);padding:clamp(8px,1.5vh,12px) 14px;margin:0 0 clamp(10px,1.8vh,18px);line-height:1.4}
-.login-campo{margin-bottom:clamp(8px,1.8vh,16px)}
-.login-campo .inp{padding:clamp(7px,1.4vh,10px) 12px}
-.login-pie{margin-top:clamp(10px,2vh,20px);padding-top:clamp(8px,1.6vh,15px);border-top:1px solid var(--border);font-size:11px;color:var(--txt-dim);line-height:1.5}
-.login-pie .pie-sep{margin:clamp(6px,1.2vh,12px) auto}
-.login-pie .pie-nombres{font-size:clamp(11.5px,1.7vh,13.5px)}
-@media (max-height:470px){.login-frase{display:none}.login-pie .pie-inst{margin-top:2px}}
-@media (max-width:420px){.login-wrap{padding:0}.login-card{max-width:100%;min-height:100dvh;border-radius:0;border:0}}
+.login-wrap{min-height:100dvh;display:flex;justify-content:center;
+  padding:clamp(10px,2.5vh,26px) clamp(10px,3vw,20px);position:relative}
+.login-card{width:100%;max-width:372px;text-align:center;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  padding:clamp(20px,3.2vh,32px) clamp(18px,4.5vw,28px);margin:auto}
+/* En notebook y escritorio el ingreso se abre en dos columnas: a la izquierda
+   el acceso, a la derecha la constancia de autoría. Así entra todo de una
+   sola mirada, sin tener que bajar la pantalla. */
+@media (min-width:880px) and (min-height:540px){
+  .login-card{max-width:800px;display:grid;grid-template-columns:1fr 1fr;
+    gap:clamp(22px,3vw,40px);align-items:center;padding:clamp(24px,3.6vh,38px) clamp(24px,3vw,34px)}
+  .login-col{min-width:0}
+  .legal-col .legal{margin-top:0;padding-top:0;border-top:0;
+    border-left:1px solid var(--border);padding-left:clamp(18px,2.2vw,28px);text-align:center}
+}
+.login-escudo{width:clamp(44px,7.2vh,60px)}
+.login-tit{font-size:clamp(20px,3.2vh,26px)}
+.login-sub{font-size:clamp(9px,1.4vh,12px)}
+.login-barra{height:2px;width:54px;border-radius:2px;margin:clamp(7px,1.4vh,12px) auto clamp(9px,1.6vh,16px);background:linear-gradient(90deg,var(--acc2),var(--coral))}
+.login-frase{font-size:clamp(12px,1.8vh,14px);padding:clamp(8px,1.5vh,12px) 14px;margin:0 0 clamp(11px,1.8vh,18px);line-height:1.4}
+.login-campo{margin-bottom:clamp(9px,1.8vh,15px)}
+.login-campo .inp{padding:clamp(8px,1.4vh,10px) 12px}
+.login-pie{margin-top:clamp(12px,2vh,18px);padding-top:clamp(9px,1.6vh,14px);border-top:1px solid var(--border);font-size:11px;color:var(--txt-dim);line-height:1.5}
+@media (max-width:430px){.login-wrap{padding:0}.login-card{max-width:100%;border-radius:0;border:0;
+  min-height:100dvh;display:flex;flex-direction:column;justify-content:center}}
 
 /* ══════════ AVISO LEGAL Y EXPEDIENTE DNDA ══════════ */
-.legal{margin-top:clamp(10px,2vh,18px);padding-top:clamp(10px,1.8vh,16px);border-top:1px solid var(--border);
-  font-size:11.5px;color:var(--txt-dim);line-height:1.62;text-align:center}
-.legal-copy{font-size:12.5px;color:var(--txt-dim)}
+.legal{margin-top:clamp(10px,1.8vh,16px);padding-top:clamp(10px,1.6vh,14px);border-top:1px solid var(--border);
+  font-size:10.8px;color:var(--txt-dim);line-height:1.55;text-align:center}
+.legal-copy{font-size:12px;color:var(--txt-dim)}
 .legal-autoras{font-family:'Oswald';font-weight:600;letter-spacing:.4px;
   background:linear-gradient(135deg,var(--acc2),var(--coral));-webkit-background-clip:text;background-clip:text;
   -webkit-text-fill-color:transparent}
 .legal-reserva{margin-top:3px;font-size:11.5px}
-.legal-obra{margin-top:clamp(8px,1.5vh,14px)}
+.legal-obra{margin-top:clamp(7px,1.3vh,12px)}
 .legal-obra b{color:var(--acc2);font-weight:600}
-.legal-caja{margin:clamp(10px,1.8vh,16px) 0;padding:clamp(9px,1.6vh,14px) 12px;
+.legal-caja{margin:clamp(9px,1.5vh,14px) 0;padding:clamp(8px,1.4vh,12px) 12px;
   border:1px solid var(--border);border-radius:14px;background:rgba(143,212,0,.05)}
 .legal-caja-tit{font-size:10.5px;letter-spacing:2.2px;text-transform:uppercase;color:var(--txt-dim)}
 .legal-exp{font-family:ui-monospace,'Courier New',monospace;font-size:13px;letter-spacing:.6px;
   color:var(--acc2);font-weight:700;margin:5px 0 3px;word-break:break-word}
 .legal-exp-rot{font-size:10px;letter-spacing:1.8px;text-transform:uppercase;color:var(--txt-dim)}
 .legal-uso{font-size:11px}
-.legal-ver{margin-top:clamp(8px,1.5vh,14px);font-family:ui-monospace,'Courier New',monospace;
+.legal-ver{margin-top:clamp(8px,1.4vh,13px);font-family:ui-monospace,'Courier New',monospace;
   font-size:10.5px;letter-spacing:2.4px;color:var(--txt-dim)}
-@media (max-height:640px){.legal-obra,.legal-uso{display:none}}
 
 /* ══════════ PIES ORDENADOS ══════════ */
 .pie-marca{font-family:'Oswald';font-size:14px;letter-spacing:2.2px;background:linear-gradient(135deg,var(--acc2),var(--coral));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;display:inline-block}
@@ -331,7 +336,7 @@ const h = React.createElement;
 const APP_NOMBRE = "LEGAJO DIGITAL DEL ASPIRANTE";
 const APP_CORTO = "Legajo Digital";
 const APP_SUB = "del Aspirante";
-const APP_VER = "6.1";
+const APP_VER = "6.2";
 // Expediente de inscripción de la obra ante la Dirección Nacional del
 // Derecho de Autor. Se muestra en el ingreso y al pie de la aplicación.
 const EXPEDIENTE_DNDA = "EX-2026-80587993- -APN-DNDA#MJ";
@@ -2156,6 +2161,8 @@ function Login({
   }), /*#__PURE__*/React.createElement("div", {
     className: "card fade login-card"
   }, /*#__PURE__*/React.createElement("div", {
+    className: "login-col"
+  }, /*#__PURE__*/React.createElement("div", {
     className: "escudo-gira login-escudo",
     style: {
       margin: "0 auto",
@@ -2246,11 +2253,8 @@ function Login({
     className: "spin"
   }) : "Ingresar"), /*#__PURE__*/React.createElement("div", {
     className: "login-pie"
-  }, h("div", { className: "pie-inst" }, "DCFyCCCO · Secretaría Académica"),
-    h("div", { className: "pie-sep" }),
-    h("div", { className: "pie-rotulo" }, "Desarrollado por"),
-    h("div", { className: "pie-nombres" }, "Melina Ailén La Fuente ", h("span", { className: "pie-amp" }, "&"), " Eliana Velázquez")),
-    h(AvisoLegal, { conVersion: true })));
+  }, h("div", { className: "pie-inst" }, "DCFyCCCO · Secretaría Académica"))),
+    h("div", { className: "login-col legal-col" }, h(AvisoLegal, { conVersion: true }))));
 }
 
 // ====== DETALLE DEL LEGAJO ======
@@ -5684,10 +5688,7 @@ function Shell(props) {
         style: { textAlign: "center", padding: "26px 16px 34px", marginTop: 24, borderTop: "1px solid var(--border)" }
       }, h("div", { className: "pie-marca" }, "LEGAJO DIGITAL DEL ASPIRANTE"),
         h("div", { className: "pie-inst" }, "DCFyCCCO · Secretaría Académica"),
-        h("div", { className: "pie-sep" }),
-        h("div", { className: "pie-rotulo" }, "Desarrollado por"),
-        h("div", { className: "pie-nombres" }, "Melina Ailén La Fuente ", h("span", { className: "pie-amp" }, "&"), " Eliana Velázquez"),
-        h("div", { style: { maxWidth: 560, margin: "0 auto" } }, h(AvisoLegal, { conVersion: true })))),
+        h("div", { style: { maxWidth: 620, margin: "0 auto" } }, h(AvisoLegal, { conVersion: true })))),
     toast ? h(Toast, { msg: toast.msg, tipo: toast.tipo }) : null);
 }
 
