@@ -236,6 +236,27 @@ body{background-image:radial-gradient(58vw 44vw at 6% -6%, rgba(var(--acc-rgb),.
 @media (max-height:470px){.login-frase{display:none}.login-pie .pie-inst{margin-top:2px}}
 @media (max-width:420px){.login-wrap{padding:0}.login-card{max-width:100%;min-height:100dvh;border-radius:0;border:0}}
 
+/* ══════════ AVISO LEGAL Y EXPEDIENTE DNDA ══════════ */
+.legal{margin-top:clamp(10px,2vh,18px);padding-top:clamp(10px,1.8vh,16px);border-top:1px solid var(--border);
+  font-size:11.5px;color:var(--txt-dim);line-height:1.62;text-align:center}
+.legal-copy{font-size:12.5px;color:var(--txt-dim)}
+.legal-autoras{font-family:'Oswald';font-weight:600;letter-spacing:.4px;
+  background:linear-gradient(135deg,var(--acc2),var(--coral));-webkit-background-clip:text;background-clip:text;
+  -webkit-text-fill-color:transparent}
+.legal-reserva{margin-top:3px;font-size:11.5px}
+.legal-obra{margin-top:clamp(8px,1.5vh,14px)}
+.legal-obra b{color:var(--acc2);font-weight:600}
+.legal-caja{margin:clamp(10px,1.8vh,16px) 0;padding:clamp(9px,1.6vh,14px) 12px;
+  border:1px solid var(--border);border-radius:14px;background:rgba(143,212,0,.05)}
+.legal-caja-tit{font-size:10.5px;letter-spacing:2.2px;text-transform:uppercase;color:var(--txt-dim)}
+.legal-exp{font-family:ui-monospace,'Courier New',monospace;font-size:13px;letter-spacing:.6px;
+  color:var(--acc2);font-weight:700;margin:5px 0 3px;word-break:break-word}
+.legal-exp-rot{font-size:10px;letter-spacing:1.8px;text-transform:uppercase;color:var(--txt-dim)}
+.legal-uso{font-size:11px}
+.legal-ver{margin-top:clamp(8px,1.5vh,14px);font-family:ui-monospace,'Courier New',monospace;
+  font-size:10.5px;letter-spacing:2.4px;color:var(--txt-dim)}
+@media (max-height:640px){.legal-obra,.legal-uso{display:none}}
+
 /* ══════════ PIES ORDENADOS ══════════ */
 .pie-marca{font-family:'Oswald';font-size:14px;letter-spacing:2.2px;background:linear-gradient(135deg,var(--acc2),var(--coral));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;display:inline-block}
 .pie-inst{font-size:11.5px;letter-spacing:1.6px;text-transform:uppercase;color:var(--acc2);font-weight:600;margin-top:5px}
@@ -310,7 +331,10 @@ const h = React.createElement;
 const APP_NOMBRE = "LEGAJO DIGITAL DEL ASPIRANTE";
 const APP_CORTO = "Legajo Digital";
 const APP_SUB = "del Aspirante";
-const APP_VER = "6.0";
+const APP_VER = "6.1";
+// Expediente de inscripción de la obra ante la Dirección Nacional del
+// Derecho de Autor. Se muestra en el ingreso y al pie de la aplicación.
+const EXPEDIENTE_DNDA = "EX-2026-80587993- -APN-DNDA#MJ";
 
 // ══════════════════════════════════════════════════════════════
 //  CONEXIÓN A SUPABASE
@@ -2044,6 +2068,23 @@ function ListaEditable({
 }
 
 // ====== LOGIN ======
+// Aviso de autoría y expediente de registro. Va en el ingreso y al pie.
+function AvisoLegal({ conVersion }) {
+  return h("div", { className: "legal" },
+    h("div", { className: "legal-copy" }, "© 2026 ",
+      h("span", { className: "legal-autoras" }, "Melina La Fuente & Eliana Velázquez")),
+    h("div", { className: "legal-reserva" }, "Todos los derechos reservados."),
+    h("div", { className: "legal-obra" },
+      h("b", null, APP_NOMBRE), " es un sistema de gestión de autoría propia. Su diseño, estructura, código, funcionalidades y componentes son de creación propia y pertenecen a sus autoras."),
+    h("div", { className: "legal-caja" },
+      h("div", { className: "legal-caja-tit" }, "Obra protegida · Ley 11.723"),
+      h("div", { className: "legal-exp" }, EXPEDIENTE_DNDA),
+      h("div", { className: "legal-exp-rot" }, "Expediente DNDA")),
+    h("div", { className: "legal-uso" },
+      "El acceso es personal e intransferible. Queda prohibida la reproducción, modificación, distribución, cesión o utilización no autorizada del sistema y sus componentes."),
+    conVersion ? h("div", { className: "legal-ver" }, `Versión ${APP_VER} · DCFyCCCO`) : null);
+}
+
 function Login({
   onLogin
 }) {
@@ -2208,8 +2249,8 @@ function Login({
   }, h("div", { className: "pie-inst" }, "DCFyCCCO · Secretaría Académica"),
     h("div", { className: "pie-sep" }),
     h("div", { className: "pie-rotulo" }, "Desarrollado por"),
-    h("div", { className: "pie-nombres" }, "Melina Ailén La Fuente ", h("span", { className: "pie-amp" }, "&"), " Eliana Velázquez"),
-    h("div", { className: "pie-copy" }, "© 2026"))));
+    h("div", { className: "pie-nombres" }, "Melina Ailén La Fuente ", h("span", { className: "pie-amp" }, "&"), " Eliana Velázquez")),
+    h(AvisoLegal, { conVersion: true })));
 }
 
 // ====== DETALLE DEL LEGAJO ======
@@ -5646,7 +5687,7 @@ function Shell(props) {
         h("div", { className: "pie-sep" }),
         h("div", { className: "pie-rotulo" }, "Desarrollado por"),
         h("div", { className: "pie-nombres" }, "Melina Ailén La Fuente ", h("span", { className: "pie-amp" }, "&"), " Eliana Velázquez"),
-        h("div", { className: "pie-copy" }, "© 2026"))),
+        h("div", { style: { maxWidth: 560, margin: "0 auto" } }, h(AvisoLegal, { conVersion: true })))),
     toast ? h(Toast, { msg: toast.msg, tipo: toast.tipo }) : null);
 }
 
