@@ -310,7 +310,7 @@ const h = React.createElement;
 const APP_NOMBRE = "LEGAJO DIGITAL DEL ASPIRANTE";
 const APP_CORTO = "Legajo Digital";
 const APP_SUB = "del Aspirante";
-const APP_VER = "5.7";
+const APP_VER = "5.9";
 
 // ══════════════════════════════════════════════════════════════
 //  CONEXIÓN A SUPABASE
@@ -339,6 +339,18 @@ const CLAVE_SIN_CARGA = "usuarios_sin_autorizacion";
 // Mely y Eliana sólo lo ve la campanita de las administradoras. El resto del
 // equipo no se entera de esos movimientos.
 const CLAVE_AVISOS_ADMIN = "avisos_solo_administradoras";
+// Hasta dónde leyó y hasta dónde limpió la campanita cada usuario. Antes esto
+// vivía en el aparato, así que lo que ya se había mirado en el celular volvía a
+// aparecer en la computadora. Ahora viaja en lda_config, por usuario, y sirve
+// para todos los aparatos: lo leído se lee una sola vez.
+const CLAVE_LECTURA = "avisos_lectura";
+// Alertas automáticas (licencias y certificados) que ya se publicaron. También
+// estaban en el aparato: cada máquina nueva volvía a publicar las mismas y la
+// campanita se llenaba de repetidas.
+const CLAVE_ALERTAS = "alertas_avisadas";
+// Planilla de estadísticas de la Dirección: un cierre guardado por mes
+const CLAVE_PLANILLA = "estadisticas_dcfyccco";
+const DIA_ENVIO_PLANILLA = 10;   // se envía todos los 10 de cada mes
 const LIMITE_ARCHIVO_MB = 12;   // tope por archivo subido
 const LADO_MAX_FOTO = 1400;     // las fotos se achican antes de subir
 const CALIDAD_FOTO = 0.72;
@@ -388,6 +400,12 @@ const ESTADOS_ASP = ["Activo", "Desistió", "Baja", "Desafectado", "Egresado"];
 const ESTADOS_INACTIVOS = ["Desistió", "Baja", "Desafectado"];
 const SEXOS = ["Femenino", "Masculino"];
 const ASISTENCIA = ["Presente", "Ausente"];
+// Opciones de los tres datos que pide la planilla de Estadísticas DCFyCCCO
+const APTITUDES = ["Apto", "Apto con observaciones", "No apto", "Pendiente"];
+const NIVELES_EDUCATIVOS = ["Primario incompleto", "Primario completo",
+  "Secundario incompleto", "Secundario completo",
+  "Terciario incompleto", "Terciario completo",
+  "Universitario incompleto", "Universitario completo"];
 // Permisos para retirarse temprano los días de franco
 const ESTADOS_PERMISO = ["Solicitado", "Autorizado", "No autorizado"];
 const colorPermiso = e => e === "Autorizado" ? "var(--green)" : e === "No autorizado" ? "var(--red)" : "var(--amber)";
@@ -605,6 +623,12 @@ const nuevoLegajo = () => ({
   // {id, fecha, desde, hasta, motivo, profesional, path, nombreArchivo, autor, cargado}
   enfermedadInformar: "",
   medicacionConsume: "",
+  // Los tres datos que pide la planilla de Estadísticas DCFyCCCO y no tenían
+  // campo propio en la ficha. Si quedan vacíos, la planilla los deduce del
+  // resto del legajo; si se cargan acá, manda lo que se escribió.
+  aptitudFisica: "",
+  condicionesMedicas: "",
+  nivelEducativo: "",
   historial: [],
   ciudad: "",
   provincia: "",
@@ -793,7 +817,8 @@ function migrarLegajo(l) {
   if (!Array.isArray(l.historial)) l.historial = [];
   if (!Array.isArray(l.novedades)) l.novedades = [];
   if (!Array.isArray(l.permisos)) l.permisos = [];
-  ["sexo", "asistencia", "asistenciaFecha", "fechaEstado", "fechaAlta", "fechaBaja", "fechaDesistio", "fechaDesafectado", "enfermedadInformar", "medicacionConsume"].forEach(k => {
+  ["sexo", "asistencia", "asistenciaFecha", "fechaEstado", "fechaAlta", "fechaBaja", "fechaDesistio", "fechaDesafectado", "enfermedadInformar", "medicacionConsume",
+    "aptitudFisica", "condicionesMedicas", "nivelEducativo"].forEach(k => {
     if (l[k] === undefined) l[k] = "";
   });
   return l;
@@ -1243,7 +1268,9 @@ function nombresDelModulo(usuarios, acargo, modulo) {
 }
 
 // ====== AUDITORÍA ======
-const CAMPOS_AUDIT = [["estado", "Estado"], ["motivoEstado", "Motivo"], ["asistencia", "Asistencia"], ["sexo", "Sexo"], ["listado", "Listado"], ["seccion", "Sección"], ["apellido", "Apellido"], ["nombre", "Nombre"], ["dni", "DNI"], ["telefono", "Teléfono"], ["email", "Email"], ["domicilioReal", "Domicilio"], ["legajoNro", "N° de legajo"], ["credencial", "Credencial"], ["observaciones", "Observaciones"], ["fechaAlta", "Fecha de alta"], ["fechaBaja", "Fecha de baja"], ["fechaDesistio", "Fecha de desistimiento"], ["fechaDesafectado", "Fecha de desafectación"], ["enfermedadInformar", "Enfermedad a informar"], ["medicacionConsume", "Medicación"]];
+const CAMPOS_AUDIT = [["estado", "Estado"], ["motivoEstado", "Motivo"], ["asistencia", "Asistencia"], ["sexo", "Sexo"], ["listado", "Listado"], ["seccion", "Sección"], ["apellido", "Apellido"], ["nombre", "Nombre"], ["dni", "DNI"], ["telefono", "Teléfono"], ["email", "Email"], ["domicilioReal", "Domicilio"], ["legajoNro", "N° de legajo"], ["credencial", "Credencial"], ["observaciones", "Observaciones"], ["fechaAlta", "Fecha de alta"], ["fechaBaja", "Fecha de baja"], ["fechaDesistio", "Fecha de desistimiento"], ["fechaDesafectado", "Fecha de desafectación"], ["enfermedadInformar", "Enfermedad a informar"], ["medicacionConsume", "Medicación"],
+  ["aptitudFisica", "Aptitud física"], ["condicionesMedicas", "Condiciones médicas especiales"],
+  ["nivelEducativo", "Nivel educativo alcanzado"]];
 function diffLegajo(viejo, nuevo) {
   if (!viejo) return ["Alta del legajo"];
   const out = [];
@@ -2445,6 +2472,7 @@ function Detalle({
     editable: editable
   }), tab === "medico" && /*#__PURE__*/React.createElement(TabMedico, {
     l: l,
+    up: up,
     upObj: upObj,
     editable: editable
   }), tab === "carnet" && /*#__PURE__*/React.createElement(TabCarnet, {
@@ -2912,6 +2940,22 @@ function TabEstudios({
 }) {
   return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
     className: "subsec"
+  }, "Nivel educativo alcanzado"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      color: "var(--txt-dim)",
+      marginBottom: 8,
+      lineHeight: 1.5
+    }
+  }, "Va tal cual a la planilla de Estad\u00edsticas DCFyCCCO. Si lo dej\u00e1s vac\u00edo, la planilla toma el t\u00edtulo m\u00e1s alto de los estudios cargados ac\u00e1 abajo."), /*#__PURE__*/React.createElement(Campo, {
+    l: "Nivel educativo",
+    val: l.nivelEducativo,
+    set: v => up("nivelEducativo", v),
+    editable: editable,
+    opt: NIVELES_EDUCATIVOS,
+    ancho: 260
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "subsec"
   }, "Estudios cursados"), /*#__PURE__*/React.createElement(ListaEditable, {
     items: l.estudios || [],
     setItems: v => up("estudios", v),
@@ -2954,6 +2998,7 @@ function TabEstudios({
 }
 function TabMedico({
   l,
+  up,
   upObj,
   editable
 }) {
@@ -3089,6 +3134,35 @@ function TabMedico({
   }), /*#__PURE__*/React.createElement(Campo, {
     l: "Medicación (alergia)",
     ...g("alergico", "medicacion")
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "subsec"
+  }, "Para la planilla de Estadísticas DCFyCCCO"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      color: "var(--txt-dim)",
+      marginBottom: 8,
+      lineHeight: 1.5
+    }
+  }, "Estos dos datos van tal cual a la planilla que se env\u00eda todos los 10. Si los dej\u00e1s vac\u00edos, la planilla los arma sola: la aptitud la saca del preocupacional y las condiciones las junta de todo lo cargado m\u00e1s arriba."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      flexWrap: "wrap",
+      gap: 14
+    }
+  }, /*#__PURE__*/React.createElement(Campo, {
+    l: "Aptitud f\u00edsica",
+    val: l.aptitudFisica,
+    set: v => up("aptitudFisica", v),
+    editable: editable,
+    opt: APTITUDES,
+    ancho: 220
+  }), /*#__PURE__*/React.createElement(Campo, {
+    l: "Condiciones m\u00e9dicas especiales",
+    val: l.condicionesMedicas,
+    set: v => up("condicionesMedicas", v),
+    editable: editable,
+    type: "area",
+    full: true
   })));
 }
 function TabCarnet({
@@ -5387,11 +5461,13 @@ function Shell(props) {
   const LISTADOS_MENU = [
     ["l1", "\ud83d\udcc4", "1er Listado General"],
     ["l2", "\ud83d\udcc4", "2do Listado General"],
+    ["l3", "\ud83d\udcc4", "3er Listado General"],
     ["actualizado", "\u2705", "Listado Actualizado"],
     ["madre", "📖", "Listado madre"],
     ["femeninos", "\u2640\ufe0f", "Femeninos"],
     ["masculinos", "\u2642\ufe0f", "Masculinos"],
-    ["alojamiento", "\ud83c\udfe0", "Alojamiento DCFyCCCO"]
+    ["alojamiento", "\ud83c\udfe0", "Alojamiento DCFyCCCO"],
+    ["planilla", "\ud83d\udcca", "Estadísticas DCFyCCCO"]
   ];
   const enListados = LISTADOS_MENU.some(([k]) => k === vista);
   const nav = [["legajos", "Legajos"], ["bajas", "Bajas, Desistieron y Desafectados"], ["estadisticas", "Estad\u00edsticas"]].concat(rol === "admin" ? [["usuarios", "Usuarios"], ["admin", "Administraci\u00f3n"]] : []);
@@ -5656,6 +5732,11 @@ const VISTAS_LISTADO = {
     sub: "Postulantes incorporados en el segundo listado de la convocatoria.",
     filtro: l => (l.listado || "") === "2do listado"
   },
+  l3: {
+    titulo: "3er Listado General",
+    sub: "Postulantes incorporados en el tercer listado de la convocatoria.",
+    filtro: l => (l.listado || "") === "3er listado"
+  },
   actualizado: {
     titulo: "Listado Actualizado de Ingresantes",
     sub: "Listado general vigente: todos los aspirantes activos, sin bajas, desistimientos ni desafectados.",
@@ -5710,6 +5791,333 @@ function Listados({ vista, legajos, onAbrir }) {
         cols: COLS_LISTADO,
         filas: filas.map((l, i) => [i + 1, btnNombre(l, onAbrir), l.dni || "—", l.edad || "—", fmtFecha(l.fechaNac), l.sexo || "—", l.telefono || "—", l.domicilioReal || "—", l.localidad || "—", l.provincia || "—", l.seccion || "Sin asignar", alojDe(l) || "Sin asignar", chipEstado(l.estado)]),
         vacio: "Todavía no hay aspirantes en este listado. Si ya tenés la planilla oficial, importála desde Administración → Panel de Administración."
+      })));
+}
+
+// ══════════════════════════════════════════════════════════════
+//  PLANILLA DE ESTADÍSTICAS DCFyCCCO
+//  Es la planilla que la Secretaría Académica manda todos los 10 de
+//  cada mes. Se arma sola con lo que hay cargado en los legajos,
+//  respeta el formato del modelo oficial y, una vez cerrado el mes,
+//  queda guardada tal cual se envió: los meses viejos no se tocan.
+// ══════════════════════════════════════════════════════════════
+const COLS_DCF = ["N°", "APELLIDO Y NOMBRE", "DNI", "GÉNERO", "EDAD", "TELEFONO REAL", "EMAIL REAL",
+  "LUGAR DE NACIMIENTO", "LOCALIDAD DONDE RESIDE ACTUALMENTE", "ESTADO CIVIL", "HIJOS", "OBRA SOCIAL",
+  "APTITUD FÍSICA", "CONDICIONES MÉDICAS ESPECIALES", "NIVEL EDUCATIVO ALCANZADO", "CARNET DE CONDUCIR",
+  "SITUACIÓN ACTUAL", "AMONESTACIONES", "MOTIVO DE AMONESTACIONES", "MOTIVO DE BAJA", "FECHA DE BAJA"];
+// Los anchos son los del archivo modelo: la planilla tiene que llegar igual
+const ANCHOS_DCF = [4.14, 24.29, 10, 8.57, 6.14, 14.43, 15.43, 25.57, 25.43, 13.71, 9.14, 9.14,
+  9.14, 19.71, 24.57, 23.29, 9.14, 17.86, 9.14, 32.71, 11.43];
+
+// Los bordes del modelo, columna por columna (m = grueso, t = fino, - = sin
+// borde). Se copian tal cual para que la planilla llegue igual a la original.
+const BORDES_DCF_TITULO = ["mtmm", "t-mm", "mtmm", "ttmm", "ttmm", "ttmm", "ttmm", "ttmm",
+  "ttmm", "ttmm", "ttmm", "t-mm", "t-mm", "t-mm", "tmmm", "ttmm", "--mm", "--mm", "--mm", "--mm", "-mmm"];
+const BORDES_DCF_ENCABEZADO = ["mtmm", "ttmm", "ttmm", "ttmm", "ttmm", "ttmm", "ttmm", "ttmm",
+  "ttmm", "ttmm", "ttmm", "ttmm", "ttmm", "ttmm", "ttmm", "ttmm", "ttmm", "ttmm", "ttmm", "ttmm", "tmmm"];
+
+const MESES_ES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+const claveMes = f => {
+  const d = f || new Date();
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0");
+};
+const nombreMes = clave => {
+  const p = String(clave || "").split("-");
+  return `${MESES_ES[Number(p[1]) - 1] || ""} ${p[0] || ""}`.trim();
+};
+const tituloPlanilla = clave => `PLANILLA RECOPILACIÓN DE DATOS ALUMNOS ${nombreMes(clave).toUpperCase()}`;
+
+const esSi = v => norm(v || "").trim() === "si";
+
+// Cuántos hijos: primero la lista cargada, si no el número del formulario
+function hijosDeLegajo(l) {
+  const n = (l.hijos || []).length;
+  if (n) return n;
+  const c = ((l.familia || {}).cantidadHijos || "").toString().trim();
+  if (/^\d+$/.test(c)) return Number(c);
+  if (esSi(c)) return "Sí";
+  return 0;
+}
+
+// Aptitud física: lo que se haya cargado en la ficha; si está vacío, lo que
+// diga el examen preocupacional.
+function aptitudDe(l) {
+  if (l.aptitudFisica) return l.aptitudFisica;
+  const p = l.preocupacional || {};
+  if (p.apto) return p.apto;
+  if (p.realizado) return "Preocupacional realizado";
+  return "Sin cargar";
+}
+
+// Lo escrito en la ficha manda; si no hay nada, se arma juntando todo lo que
+// esté informado en Antecedentes médicos y en Datos personales.
+function condicionesDe(l) {
+  if (l.condicionesMedicas) return l.condicionesMedicas;
+  const m = l.medico || {}, out = [];
+  const cir = m.cirugias || {}, pat = m.patologias || {}, tra = m.traumatologicos || {};
+  const med = m.medicacion || {}, len = m.lentes || {}, ale = m.alergico || {};
+  if (esSi(pat.tiene)) out.push("Patología: " + (pat.tipo || "sin detallar"));
+  if (esSi(cir.tiene)) out.push("Cirugía: " + (cir.tipo || "sin detallar"));
+  if (esSi(tra.tiene)) out.push("Traumatológico: " + (tra.motivo || "sin detallar"));
+  if (esSi(ale.es)) out.push("Alergia: " + (ale.causa || "sin detallar"));
+  if (esSi(len.usa)) out.push("Usa lentes" + (len.tipo ? ` (${len.tipo})` : ""));
+  if (esSi(med.toma)) out.push("Medicación: " + (med.detalle || "sin detallar"));
+  if (l.enfermedadInformar) out.push(l.enfermedadInformar);
+  if (l.medicacionConsume) out.push("Consume: " + l.medicacionConsume);
+  const cm = l.certMedico || {};
+  if (esSi(cm.tiene)) out.push("Certificado médico" + (cm.motivo ? ": " + cm.motivo : "") + (cm.hasta ? ` (hasta ${fmtFecha(cm.hasta)})` : ""));
+  return out.length ? out.join(" · ") : "Sin condiciones informadas";
+}
+
+// Nivel educativo: el título más alto de los que tenga cargados
+const NIVELES_EST = [[/universi|licenciad|abogac|ingenier|profesorad|contador/, 5],
+  [/terciar|superior|tecnicatura/, 4],
+  [/secundar|polimodal|bachiller|perito|tecnic|comercial/, 3],
+  [/primar/, 1]];
+function nivelDe(l) {
+  if (l.nivelEducativo) return l.nivelEducativo;
+  const es = (l.estudios || []).filter(e => (e.titulo || "").trim() || (e.instituto || "").trim());
+  if (!es.length) return "Sin cargar";
+  let mejor = null, rango = -1;
+  es.forEach(e => {
+    const txt = norm(`${e.titulo || ""} ${e.instituto || ""}`);
+    let r = 2;
+    for (const par of NIVELES_EST) {
+      if (par[0].test(txt)) {
+        r = par[1];
+        break;
+      }
+    }
+    const anio = String(e.anioEgreso || "");
+    if (r > rango || (r === rango && anio > String((mejor || {}).anioEgreso || ""))) {
+      rango = r;
+      mejor = e;
+    }
+  });
+  if (!mejor) return "Sin cargar";
+  return `${mejor.titulo || "Sin título cargado"}${mejor.anioEgreso ? " – " + mejor.anioEgreso : ""}${esSi(mejor.adeudaMaterias) ? " (adeuda materias)" : ""}`;
+}
+
+function carnetTexto(l) {
+  const c = l.carnet || {};
+  if (!c.posee) return "No";
+  const p = ["Sí"];
+  if (c.categoria) p.push("Cat. " + c.categoria);
+  if (c.vencimiento) p.push("vence " + fmtFecha(c.vencimiento));
+  return p.join(" – ");
+}
+
+// Amonestaciones: las que se cargan en Legajo operativo. Las que no tienen
+// tipo se cuentan como amonestación; las sanciones van aparte en el motivo.
+const amonestacionesDe = l => (l.sanciones || []).filter(s => !s.tipo || s.tipo === "Amonestación");
+function motivoAmonestaciones(l) {
+  const s = l.sanciones || [];
+  if (!s.length) return "";
+  return s.map(x => `${x.tipo || "Amonestación"}${x.fecha ? " " + fmtFecha(x.fecha) : ""}: ${x.descripcion || "sin detallar"}`).join(" · ");
+}
+
+const localidadResidencia = l => [l.localidad, l.provincia].filter(Boolean).join(", ");
+
+function filaDCF(l, i) {
+  const inactivo = esInactivo(l);
+  return [
+    i + 1,
+    nombreFormal(l),
+    l.dni || "",
+    l.sexo || "",
+    l.edad || "",
+    l.telefono || "",
+    l.email || "",
+    l.lugarNac || "",
+    localidadResidencia(l),
+    (l.familia || {}).estadoCivil || "",
+    hijosDeLegajo(l),
+    l.obraSocial || "",
+    aptitudDe(l),
+    condicionesDe(l),
+    nivelDe(l),
+    carnetTexto(l),
+    l.estado || "Activo",
+    amonestacionesDe(l).length,
+    motivoAmonestaciones(l),
+    inactivo ? (l.motivoEstado || l.estado || "") : "",
+    inactivo ? fmtFecha(fechaDeEstado(l, l.estado)) : ""
+  ];
+}
+
+// Excel con el formato del modelo: título arriba, encabezados en negrita
+// con los mismos anchos de columna y todo el cuadro con borde.
+function exportarPlanillaDCF(clave, filas) {
+  const aoa = [[tituloPlanilla(clave)].concat(new Array(COLS_DCF.length - 1).fill("")), COLS_DCF].concat(filas);
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  const r = XLSX.utils.decode_range(ws["!ref"]);
+  const fina = { style: "thin", color: { rgb: "000000" } };
+  const gruesa = { style: "medium", color: { rgb: "000000" } };
+  for (let R = r.s.r; R <= r.e.r; R++) {
+    for (let C = r.s.c; C <= r.e.c; C++) {
+      const dir = XLSX.utils.encode_cell({ r: R, c: C });
+      if (!ws[dir]) ws[dir] = { t: "s", v: "" };
+      const lado = t => t === "m" ? gruesa : t === "t" ? fina : undefined;
+      const bordeDe = mapa => ({
+        left: lado(mapa[C][0]), right: lado(mapa[C][1]),
+        top: lado(mapa[C][2]), bottom: lado(mapa[C][3])
+      });
+      if (R === 0) {
+        ws[dir].s = {
+          font: C === 0 ? { name: "Aptos Narrow", sz: 16, bold: true } : { name: "Calibri", sz: 11 },
+          alignment: { horizontal: "centerContinuous", vertical: "center" },
+          border: bordeDe(BORDES_DCF_TITULO)
+        };
+      } else if (R === 1) {
+        ws[dir].s = {
+          font: { name: "Aptos Narrow", sz: 11, bold: true },
+          alignment: { horizontal: "center", vertical: "center", wrapText: true },
+          border: bordeDe(BORDES_DCF_ENCABEZADO)
+        };
+      } else {
+        // La primera fila de datos va sin borde arriba, como en el modelo:
+        // el encabezado ya cierra con su línea gruesa.
+        ws[dir].s = {
+          font: { name: "Calibri", sz: 11 },
+          alignment: { vertical: "top", horizontal: C === 0 ? "center" : "left", wrapText: true },
+          border: { top: R === 2 ? undefined : fina, bottom: fina, left: fina, right: fina }
+        };
+      }
+    }
+  }
+  // width (y no wch) para que las columnas queden con el ancho exacto del modelo
+  ws["!cols"] = ANCHOS_DCF.map(w => ({ width: w }));
+  ws["!rows"] = [{ hpt: 21.75 }, { hpt: 45.75 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Recopilación Inicio");
+  XLSX.writeFile(wb, `ESTADISTICAS_DCFYCCCO_${clave}.xlsx`);
+}
+
+// Recordatorio del envío: aparece unos días antes del 10 y deja de
+// aparecer apenas se guarda el cierre del mes.
+function alertaPlanilla(guardadas) {
+  const d = new Date(), clave = claveMes(d), dia = d.getDate();
+  if ((guardadas || {})[clave]) return [];
+  const donde = "Está en Aspirantes 2da Convocatoria → Estadísticas DCFyCCCO.";
+  const out = [];
+  if (dia >= DIA_ENVIO_PLANILLA - 4 && dia < DIA_ENVIO_PLANILLA)
+    out.push({ id: `planilla-${clave}-aviso`, msg: `Se viene la planilla de Estadísticas DCFyCCCO de ${nombreMes(clave)}: se envía el ${DIA_ENVIO_PLANILLA}. ${donde}` });
+  if (dia >= DIA_ENVIO_PLANILLA)
+    out.push({ id: `planilla-${clave}-hoy`, msg: `Hay que enviar la planilla de Estadísticas DCFyCCCO de ${nombreMes(clave)}. ${donde}` });
+  return out;
+}
+
+function PlanillaDCF({ legajos, user, guardados, onGuardarMes, onAbrir }) {
+  const mesActual = claveMes(new Date());
+  const [mes, setMes] = useState(mesActual);
+  const [q, setQ] = useState("");
+  const [soloActivos, setSoloActivos] = useState(false);
+  const [verGuardado, setVerGuardado] = useState(false);
+  const [guardando, setGuardando] = useState(false);
+
+  const guardado = (guardados || {})[mes];
+  const esActual = mes === mesActual;
+  const mostrarGuardado = !!guardado && (!esActual || verGuardado);
+  const puedeCerrar = esAdmin(user) || puedeCargarDatos(user);
+
+  const meses = useMemo(() => {
+    const ks = Object.keys(guardados || {});
+    if (!ks.includes(mesActual)) ks.push(mesActual);
+    return ks.sort().reverse();
+  }, [guardados, mesActual]);
+
+  const vivas = useMemo(() => (legajos || [])
+    .filter(l => !soloActivos || !esInactivo(l))
+    .slice().sort(ordenNombre)
+    .map((l, i) => ({ legajo: l, celdas: filaDCF(l, i) })), [legajos, soloActivos]);
+
+  const todas = mostrarGuardado
+    ? (guardado.filas || []).map(c => ({ legajo: null, celdas: c }))
+    : vivas;
+
+  const nq = norm(q).trim();
+  const filas = nq ? todas.filter(f => norm(f.celdas.join(" ")).includes(nq)) : todas;
+
+  const hoyD = new Date();
+  const faltan = DIA_ENVIO_PLANILLA - hoyD.getDate();
+  const avisar = !guardados || !guardados[mesActual];
+
+  const cerrarMes = async () => {
+    setGuardando(true);
+    await onGuardarMes(mesActual, vivas.map(f => f.celdas));
+    setGuardando(false);
+    setVerGuardado(true);
+  };
+
+  const cont = { maxWidth: 1360, margin: "0 auto", padding: "0 16px 60px" };
+  // Hay columnas con mucho texto (condiciones médicas, motivos): en pantalla
+  // se recortan y el texto completo queda en el globito. En el Excel va entero.
+  const celda = (v, j, f) => {
+    if (j === 1 && f.legajo && onAbrir) return btnNombre(f.legajo, onAbrir);
+    const s = v === "" || v === null || v === undefined ? "—" : String(v);
+    return s.length > 44 ? h("span", { title: s }, s.slice(0, 43) + "…") : s;
+  };
+
+  return h("div", { className: "fade", style: cont },
+    h("h2", { style: { fontSize: 26, color: "var(--acc2)", margin: "22px 0 4px" } }, "Estadísticas DCFyCCCO"),
+    h("div", { style: { fontSize: 13, color: "var(--txt-dim)", marginBottom: 16, lineHeight: 1.5 } },
+      `La planilla de recopilación de datos que se envía todos los ${DIA_ENVIO_PLANILLA} de cada mes. Se completa sola con lo que hay cargado en los legajos: si alguien carga un dato en una ficha, acá aparece. Se descarga en Excel con el mismo formato del modelo. Cuando cerrás el mes queda guardada tal cual se envió y no se modifica más, aunque después cambien los legajos.`),
+
+    avisar ? h("div", {
+      className: "card",
+      style: {
+        padding: 14, marginBottom: 16, borderLeft: "4px solid var(--coral)",
+        background: "rgba(255,107,53,.08)", fontSize: 13.5, lineHeight: 1.55
+      }
+    }, h("b", { style: { color: "var(--coral)" } }, faltan > 0
+      ? `Faltan ${faltan} día${faltan === 1 ? "" : "s"} para enviar la planilla de ${nombreMes(mesActual)}. `
+      : `La planilla de ${nombreMes(mesActual)} todavía no está cerrada. `),
+      "Descargala, mandala y después tocá “Guardar el cierre del mes” para que quede archivada y deje de avisarte.") : null,
+
+    h("div", { style: { display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", marginBottom: 14 } },
+      h("select", {
+        className: "inp", style: { width: "auto", minWidth: 190 },
+        value: mes, onChange: e => {
+          setMes(e.target.value);
+          setVerGuardado(false);
+        }
+      }, meses.map(k => h("option", { key: k, value: k },
+        `${nombreMes(k).replace(/^./, c => c.toUpperCase())}${k === mesActual ? " (mes en curso)" : ""}${(guardados || {})[k] ? " ✔" : ""}`))),
+      h("input", {
+        className: "inp", style: { width: "auto", flex: "1 1 220px", maxWidth: 340 },
+        placeholder: "Buscar en la planilla…",
+        value: q, onChange: e => setQ(e.target.value)
+      }),
+      esActual && !mostrarGuardado ? h("label", { style: { display: "flex", alignItems: "center", gap: 7, fontSize: 13, color: "var(--txt-dim)", cursor: "pointer" } },
+        h("input", { type: "checkbox", checked: soloActivos, onChange: e => setSoloActivos(e.target.checked) }),
+        "Sólo los que siguen en actividad") : null,
+      h("button", {
+        className: "btn btn-ghost",
+        onClick: () => exportarPlanillaDCF(mes, filas.map(f => f.celdas))
+      }, h(I.excel, { style: { width: 16, height: 16 } }), "Descargar Excel"),
+      esActual && puedeCerrar ? h("button", {
+        className: "btn", disabled: guardando, onClick: cerrarMes
+      }, guardando ? "Guardando…" : (guardado ? "Volver a guardar el cierre" : "Guardar el cierre del mes")) : null),
+
+    guardado ? h("div", { style: { fontSize: 12.5, color: "var(--txt-dim)", marginBottom: 12, lineHeight: 1.5 } },
+      `Cierre de ${nombreMes(mes)} guardado por ${guardado.autor || "—"} el ${fmtFecha((guardado.guardado || "").slice(0, 10))} · ${guardado.total || (guardado.filas || []).length} aspirantes.`,
+      esActual ? h("button", {
+        className: "btn btn-ghost",
+        style: { marginLeft: 10, padding: "3px 10px", fontSize: 12 },
+        onClick: () => setVerGuardado(v => !v)
+      }, verGuardado ? "Ver los datos de hoy" : "Ver lo que se guardó") : null) : null,
+
+    h("div", { style: { fontSize: 13, color: "var(--txt-dim)", marginBottom: 12 } },
+      `${filas.length} aspirante${filas.length === 1 ? "" : "s"}`,
+      mostrarGuardado ? " · planilla cerrada, no se modifica" : " · datos en vivo desde los legajos",
+      nq ? ` · filtrando "${q}"` : ""),
+
+    h("div", { className: "card", style: { padding: 4 } },
+      h(Tabla, {
+        cols: COLS_DCF,
+        fijas: 2,
+        filas: filas.map(f => f.celdas.map((v, j) => celda(v, j, f))),
+        vacio: "Todavía no hay aspirantes cargados."
       })));
 }
 
@@ -6165,6 +6573,8 @@ const ETIQ_CLAVE = {
   certificados: "Certificados médicos presentados", profesional: "Profesional o institución",
   nombreArchivo: "Nombre del archivo",
   enfermedadInformar: "Enfermedad a informar", medicacionConsume: "Medicación que consume",
+  aptitudFisica: "Aptitud física", condicionesMedicas: "Condiciones médicas especiales",
+  nivelEducativo: "Nivel educativo alcanzado",
   preocupacional: "Preocupacional", realizado: "Realizado", apto: "Apto",
   carnet: "Licencia de conducir", posee: "Posee", categoria: "Categoría",
   queManeja: "Qué maneja", fechaEmision: "Fecha de emisión", vencimiento: "Vencimiento",
@@ -6238,8 +6648,9 @@ const BLOQUE_DE_RAIZ = {
   credencial: "personales", lugarFecha: "personales",
   familia: "familia", hijos: "familia",
   padre: "padres", madre: "padres", hermanos: "padres",
-  estudios: "estudios", empleos: "estudios",
+  estudios: "estudios", empleos: "estudios", nivelEducativo: "estudios",
   medico: "salud", certMedico: "salud", certificados: "salud", enfermedadInformar: "salud", medicacionConsume: "salud", preocupacional: "salud",
+  aptitudFisica: "salud", condicionesMedicas: "salud",
   carnet: "licencia", talles: "licencia",
   antecedentes: "antecedentes",
   recargos: "operativo", sanciones: "operativo", expedientes: "operativo", observaciones: "operativo",
@@ -7260,6 +7671,7 @@ function App() {
   const [ocultarHasta, setOcultarHasta] = useState(() => lsGet("lda_ocultos", ""));
   // Novedades de las administradoras reservadas para las administradoras
   const [avisosSoloAdmin, setAvisosSoloAdmin] = useState(true);
+  const [planillas, setPlanillas] = useState({});
   const [confirmar, setConfirmar] = useState(null);
   const [acargo, setACargo] = useState({});
   const [refresco, setRefresco] = useState(0);
@@ -7318,10 +7730,30 @@ function App() {
         const priv = await DB.get(CLAVE_AVISOS_ADMIN);
         setAvisosSoloAdmin(priv === undefined || priv === null ? true : priv !== false);
       } catch (e) {}
-      const vistas = lsGet("lda_alertas", []);
-      const nuevas = alertasVencimiento(d.legajos || []).filter(a => !vistas.includes(a.id));
+      // Los cierres mensuales de la planilla de estadísticas
+      let pl = {};
+      try {
+        const p = await DB.get(CLAVE_PLANILLA);
+        if (p && typeof p === "object") pl = p;
+      } catch (e) {}
+      setPlanillas(pl);
+      // Qué alertas automáticas ya se publicaron. Esto ahora está en la base:
+      // si estuviera sólo en el aparato, cada máquina nueva volvería a publicar
+      // las mismas y la campanita se llenaría de novedades repetidas.
+      let vistas = [];
+      try {
+        const v = await DB.get(CLAVE_ALERTAS);
+        if (Array.isArray(v)) vistas = v;
+      } catch (e) {}
+      const locales = lsGet("lda_alertas", []);
+      if (locales.length) vistas = Array.from(new Set(vistas.concat(locales)));
+      const nuevas = alertasVencimiento(d.legajos || []).concat(alertaPlanilla(pl)).filter(a => !vistas.includes(a.id));
       if (nuevas.length) {
-        lsSet("lda_alertas", [...vistas, ...nuevas.map(a => a.id)].slice(-400));
+        const lista = [...vistas, ...nuevas.map(a => a.id)].slice(-400);
+        lsSet("lda_alertas", lista);
+        try {
+          await DB.set(CLAVE_ALERTAS, lista);
+        } catch (e) {}
         for (const a of nuevas) await apilar("avisos", { usuario: "sistema", nombre: "Sistema", msg: "⏰ " + a.msg }, 80);
       }
     } catch (e) {
@@ -7444,10 +7876,29 @@ function App() {
     }
   };
 
+  // La marca de leídas se guarda en la base, por usuario, así que lo que se
+  // miró en el celular ya está mirado en la computadora. Nunca va para atrás:
+  // entre la marca del aparato y la de la base gana la más nueva.
+  const guardarLectura = async (leidos, ocultos) => {
+    if (!user) return;
+    try {
+      const previo = await DB.get(CLAVE_LECTURA);
+      const mapa = previo && typeof previo === "object" ? { ...previo } : {};
+      const k = norm(user.usuario);
+      mapa[k] = {
+        ...(mapa[k] || {}),
+        ...(leidos ? { leidos } : {}),
+        ...(ocultos ? { ocultos } : {})
+      };
+      await DB.set(CLAVE_LECTURA, mapa);
+    } catch (e) {}
+  };
+
   const marcarLeidas = () => {
     const t = new Date().toISOString();
     lsSet("lda_leidos", t);
     setUltimaLectura(t);
+    guardarLectura(t, null);
   };
   // "Limpiar" sólo despeja la campanita: los avisos quedan guardados en el historial
   const archivarAvisos = () => {
@@ -7456,6 +7907,61 @@ function App() {
     setOcultarHasta(t);
     lsSet("lda_leidos", t);
     setUltimaLectura(t);
+    guardarLectura(t, t);
+  };
+
+  // Traer de la base hasta dónde llegó este usuario: al entrar y cada vez que
+  // vuelve a la ventana, que es justo cuando cambió de aparato.
+  useEffect(() => {
+    if (!user) return;
+    let vivo = true;
+    const masNuevo = (a, b) => ((a || "") > (b || "") ? (a || "") : (b || ""));
+    const sincronizar = () => {
+      DB.get(CLAVE_LECTURA).then(lec => {
+        if (!vivo || !lec || typeof lec !== "object") return;
+        const mia = lec[norm(user.usuario)] || {};
+        if (mia.leidos) setUltimaLectura(v => {
+          const n = masNuevo(v, mia.leidos);
+          lsSet("lda_leidos", n);
+          return n;
+        });
+        if (mia.ocultos) setOcultarHasta(v => {
+          const n = masNuevo(v, mia.ocultos);
+          lsSet("lda_ocultos", n);
+          return n;
+        });
+      }).catch(() => {});
+    };
+    sincronizar();
+    window.addEventListener("focus", sincronizar);
+    return () => {
+      vivo = false;
+      window.removeEventListener("focus", sincronizar);
+    };
+  }, [user]);
+
+  // Cierre mensual de la planilla: queda archivado tal cual se envió
+  const guardarCierrePlanilla = async (clave, filas) => {
+    const nuevo = { ...(planillas || {}) };
+    nuevo[clave] = {
+      mes: clave,
+      guardado: new Date().toISOString(),
+      autor: comoLlamar(user),
+      total: filas.length,
+      filas
+    };
+    // Se guardan los últimos 18 meses: alcanza de sobra y no infla la base
+    const claves = Object.keys(nuevo).sort();
+    while (claves.length > 18) delete nuevo[claves.shift()];
+    try {
+      await DB.set(CLAVE_PLANILLA, nuevo);
+      setPlanillas(nuevo);
+      toast(`Planilla de ${nombreMes(clave)} guardada`, "ok");
+      const av = await publicarAviso(user, `${comoLlamar(user)} cerró la planilla de Estadísticas DCFyCCCO de ${nombreMes(clave)}`);
+      if (av) setAvisos(av);
+    } catch (e) {
+      toast("No se pudo guardar la planilla: " + (e.message || e), "err");
+    }
   };
 
   const visibles = data.legajos;
@@ -8095,6 +8601,9 @@ function App() {
     legajos: visibles, onAbrir: l => setSel(l)
   }) : VISTAS_LISTADO[vista] ? h(Listados, {
     vista, legajos: visibles, onAbrir: l => setSel(l)
+  }) : vista === "planilla" ? h(PlanillaDCF, {
+    legajos: data.legajos, user, guardados: planillas,
+    onGuardarMes: guardarCierrePlanilla, onAbrir: l => setSel(l)
   }) : vista === "alojamiento" ? h(AlojamientoVista, {
     legajos: visibles, onAbrir: l => setSel(l), usuarios: data.usuarios, acargo,
     user, onGuardar: guardarLegajo
